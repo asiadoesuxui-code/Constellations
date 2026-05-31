@@ -1,0 +1,40 @@
+Constellation — project overview
+A web app where visitors send a wish, and that wish becomes a unique constellation in a shared, persistent night sky that everyone can see and explore.
+
+Core concept
+One prompt only: "send your wish to the sky." User types their wish, submits, and a unique constellation is generated from their text and placed in the sky. The sky is collective and persistent — every user sees every other user's constellations. Anonymous. No accounts.
+
+User flow
+
+User lands on the page. Night sky is visible in the background with existing constellations.
+Submission popup overlays the sky with the prompt and a text input.
+User submits their wish. Loading state runs moderation in the background (2-3 seconds).
+If approved, the constellation generates and appears in the sky with a placement animation (soft burst, stars appearing one by one, lines drawing between them).
+User can save a share card or just explore.
+User can pan and zoom around the infinite sky to read other people's wishes by hovering on their constellations.
+
+Tech stack
+
+React + TypeScript + Vite
+PixiJS for the canvas rendering
+Framer Motion for UI transitions
+Supabase for the persistent database
+OpenAI for AI moderation (via Supabase edge function)
+html-to-image for share card capture
+
+Architecture (three subsystems)
+Sky and constellation rendering — lives in /src/sky/. PixiJS renderer with procedural gradient sky, nebula clouds, ambient twinkling stars. Deterministic constellation generation from text (hash → seeded RNG → 3-7 stars with nearest-neighbour connections). Pan/zoom, idle camera drift, viewport culling with spatial grid, placement animation for new constellations, hover tooltips.
+Database and persistence — lives in /src/lib/supabase/, /src/api/, and /supabase/. SQL migration with Row Level Security (public read and insert only, no update or delete). Rate limiting table (1 submission per 30s per IP, 10 per hour). Client API for fetching constellations in bounds, subscribing to new inserts in real time, and submitting wishes. Supabase edge function that handles rate limit → moderation → placement → insert.
+Moderation pipeline — lives in /src/moderation/. Three checks on every submission: profanity/slur word-list filter, language detection (English only), OpenAI moderation call. Returns approved or rejected with reason. Deno-compatible copy in /supabase/functions/_shared/moderation/ for the edge function.
+
+Constellation generation algorithm
+User text is hashed (FNV) into a numeric seed. Seeded random number generator uses the seed to deterministically generate 3-7 stars within a 40-60 pixel radius, picks a colour temperature from a curated palette (warm white, blue-white, peach, soft violet), assigns bright/dim flags, and connects stars with nearest-neighbour lines plus 1-2 extra cross connections. Same text always produces the same constellation. Constellations are placed in the sky at random positions with at least 90 pixels of separation.
+
+Demo mode
+When Supabase environment variables aren't configured, the app runs in demo mode with 10 sample constellations and local-only submission (no persistence). Useful for development without backend setup.
+
+Visual direction
+Dark atmospheric sky. Radial gradient background from purple-blue centre (#1a1438) to near-black edges (#050314). Blurred nebula clouds in deep purples, blues, and magenta. Hundreds of small twinkling ambient stars. Soft, slow animations. Literary serif typography for the prompt and wishes (Cormorant Garamond, Fraunces, or similar). Clean sans-serif for UI elements.
+
+Current state
+The architecture is built and the file structure is correct. The app is currently rendering a black screen with no visible content — likely an initialization issue. Browser console shows what's happening when the app boots.
