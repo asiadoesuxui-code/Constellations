@@ -1,0 +1,40 @@
+.share-card {
+  width: 400px;
+  padding: 2.5rem 2rem 2rem;
+  background: linear-gradient(180deg, #0d0a22 0%, #050314 100%);
+  border-radius: 16px;
+  text-align: center;
+  font-family: var(--font-serif);
+}
+
+.share-card-constellation {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 1.5rem;
+}
+
+.share-card-wish {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+  margin: 0 0 2rem;
+}
+
+.share-card-brand {
+  font-family: var(--font-serif);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.share-card-brand span {
+  color: var(--accent-violet);
+}
+
+.share-card-offscreen {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+}
