@@ -104,6 +104,7 @@ function App() {
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <SkyCanvas
         ref={skyRef}
+        viewMode={flow.showPopup ? 'landing' : 'exploring'}
         fetchConstellations={fetchConstellations}
         onHover={handleHover}
       />

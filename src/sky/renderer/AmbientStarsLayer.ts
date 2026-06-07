@@ -1,12 +1,15 @@
 import { Container, Graphics } from 'pixi.js'
 import { SeededRandom } from '../generation/seededRandom'
+import { SKY_TILE_SPACING } from './SkyBackground'
 
-const AMBIENT_SEED = 7777
+export type SkyViewMode = 'landing' | 'exploring'
 
 type StarKind = 'pinpoint' | 'soft' | 'flare'
 
 interface AmbientStar {
   baseAlpha: number
+  baseSize: number
+  kind: StarKind
   phase: number
   speed: number
   graphics: Graphics
@@ -41,9 +44,9 @@ function createStarGraphic(kind: StarKind, size: number, alpha: number): Graphic
   return g
 }
 
-function pickKind(rng: SeededRandom): StarKind {
+function pickKind(rng: SeededRandom, allowFlares: boolean): StarKind {
   const roll = rng.next()
-  if (roll < 0.05) return 'flare'
+  if (allowFlares && roll < 0.05) return 'flare'
   if (roll < 0.2) return 'soft'
   return 'pinpoint'
 }
@@ -52,14 +55,22 @@ export class AmbientStarsLayer {
   readonly container = new Container()
   private stars: AmbientStar[] = []
   private time = 0
+  private mode: SkyViewMode = 'landing'
+  private alphaMultiplier = 1
+  private sizeMultiplier = 1
 
-  constructor(count: number, viewportW: number, viewportH: number) {
-    const rng = new SeededRandom(AMBIENT_SEED)
-    const spreadW = Math.max(viewportW * 1.6, 1400)
-    const spreadH = Math.max(viewportH * 1.6, 900)
+  constructor(
+    count: number,
+    spreadW: number,
+    spreadH: number,
+    seed = 7777,
+    options: { includeClusters?: boolean; allowFlares?: boolean } = {},
+  ) {
+    const { includeClusters = false, allowFlares = true } = options
+    const rng = new SeededRandom(seed)
 
     for (let i = 0; i < count; i++) {
-      const kind = pickKind(rng)
+      const kind = pickKind(rng, allowFlares)
       const size =
         kind === 'flare'
           ? 2.2 + rng.next() * 1.4
@@ -75,6 +86,8 @@ export class AmbientStarsLayer {
 
       this.stars.push({
         baseAlpha,
+        baseSize: size,
+        kind,
         phase: rng.next() * Math.PI * 2,
         speed: 0.4 + rng.next() * 1.8,
         graphics: g,
@@ -82,16 +95,18 @@ export class AmbientStarsLayer {
       this.container.addChild(g)
     }
 
-    this.addViewportClusters(rng, viewportW, viewportH)
+    if (includeClusters) {
+      this.addViewportClusters(rng, spreadW, spreadH)
+    }
   }
 
   private addViewportClusters(
     rng: SeededRandom,
-    viewportW: number,
-    viewportH: number,
+    spreadW: number,
+    spreadH: number,
   ): void {
-    const halfW = viewportW * 0.48
-    const halfH = viewportH * 0.46
+    const halfW = spreadW * 0.48
+    const halfH = spreadH * 0.46
     const clusterCenters = [
       { x: -halfW, y: -halfH },
       { x: halfW, y: -halfH },
@@ -114,6 +129,8 @@ export class AmbientStarsLayer {
 
         this.stars.push({
           baseAlpha,
+          baseSize: size,
+          kind: 'pinpoint',
           phase: rng.next() * Math.PI * 2,
           speed: 0.3 + rng.next() * 1.2,
           graphics: g,
@@ -123,12 +140,70 @@ export class AmbientStarsLayer {
     }
   }
 
+  setViewMode(mode: SkyViewMode): void {
+    this.mode = mode
+    if (mode === 'landing') {
+      this.alphaMultiplier = 1
+      this.sizeMultiplier = 1
+      return
+    }
+
+    this.alphaMultiplier = 0.28
+    this.sizeMultiplier = 0.52
+  }
+
   update(deltaMs: number): void {
     this.time += deltaMs * 0.001
     for (const star of this.stars) {
       const twinkle =
         star.baseAlpha * (0.7 + 0.3 * Math.sin(this.time * star.speed + star.phase))
-      star.graphics.alpha = twinkle
+      const flarePenalty = this.mode === 'exploring' && star.kind === 'flare' ? 0.45 : 1
+      star.graphics.alpha = twinkle * this.alphaMultiplier * flarePenalty
+      star.graphics.scale.set(this.sizeMultiplier)
+    }
+  }
+}
+
+class TiledAmbientStarsLayer {
+  readonly container = new Container()
+  private cells: AmbientStarsLayer[] = []
+
+  constructor(_viewportW: number, _viewportH: number, mobile = false) {
+    const spread = SKY_TILE_SPACING
+    const centerCount = mobile ? 130 : 190
+    const tileCount = mobile ? 38 : 55
+    const gridRadius = 3
+
+    for (let row = -gridRadius; row <= gridRadius; row++) {
+      for (let col = -gridRadius; col <= gridRadius; col++) {
+        const isCenter = row === 0 && col === 0
+        const seed = 7777 + row * 131 + col * 919
+        const cell = new AmbientStarsLayer(
+          isCenter ? centerCount : tileCount,
+          spread,
+          spread,
+          seed,
+          {
+            allowFlares: isCenter,
+          },
+        )
+        cell.container.x = col * SKY_TILE_SPACING
+        cell.container.y = row * SKY_TILE_SPACING
+        this.cells.push(cell)
+        this.container.addChild(cell.container)
+      }
+    }
+  }
+
+  setViewMode(mode: SkyViewMode): void {
+    for (const cell of this.cells) {
+      cell.setViewMode(mode)
+    }
+  }
+
+  update(deltaMs: number): void {
+    for (const cell of this.cells) {
+      cell.update(deltaMs)
     }
   }
 }
@@ -138,9 +213,10 @@ export function createAmbientStarsLayer(
   viewportW: number,
   viewportH: number,
   mobile = false,
-): AmbientStarsLayer {
-  const count = mobile ? 350 : 550
-  const layer = new AmbientStarsLayer(count, viewportW, viewportH)
+): TiledAmbientStarsLayer {
+  const layer = new TiledAmbientStarsLayer(viewportW, viewportH, mobile)
   parent.addChild(layer.container)
   return layer
 }
+
+export type AmbientStarsLayerHandle = TiledAmbientStarsLayer

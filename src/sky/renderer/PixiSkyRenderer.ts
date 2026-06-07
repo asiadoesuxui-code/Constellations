@@ -11,8 +11,15 @@ import {
   createConstellationSprite,
   type ConstellationVisual,
 } from '../renderer/ConstellationSprite'
-import { createAmbientStarsLayer, type AmbientStarsLayer } from '../renderer/AmbientStarsLayer'
-import { createLandingDecorations } from '../renderer/landingDecorations'
+import {
+  createAmbientStarsLayer,
+  type AmbientStarsLayerHandle,
+  type SkyViewMode,
+} from '../renderer/AmbientStarsLayer'
+import {
+  createLandingDecorations,
+  updateLandingDecorations,
+} from '../renderer/landingDecorations'
 import { createNebulaLayer } from '../renderer/NebulaLayer'
 import { createTiledBackground } from '../renderer/SkyBackground'
 
@@ -33,7 +40,10 @@ export class PixiSkyRenderer {
   private visuals = new Map<string, ConstellationVisual>()
   private panZoom?: PanZoomHandler
   private idleDrift = new IdleDrift()
-  private ambientLayer?: AmbientStarsLayer
+  private ambientLayer?: AmbientStarsLayerHandle
+  private backgroundLayer?: Container
+  private landingLayer?: Container
+  private viewMode: SkyViewMode = 'landing'
   private options: SkyRendererOptions
   private lastFetchBounds: string | null = null
   private fetchDebounce: ReturnType<typeof setTimeout> | null = null
@@ -69,7 +79,7 @@ export class PixiSkyRenderer {
 
     this.appInitialized = true
     this.app.stage.addChild(this.worldLayer)
-    createTiledBackground(this.worldLayer)
+    this.backgroundLayer = createTiledBackground(this.worldLayer)
     createNebulaLayer(this.worldLayer)
     this.ambientLayer = createAmbientStarsLayer(
       this.worldLayer,
@@ -77,7 +87,7 @@ export class PixiSkyRenderer {
       this.app.screen.height,
       mobile,
     )
-    await createLandingDecorations(this.worldLayer)
+    this.landingLayer = await createLandingDecorations(this.worldLayer)
     this.worldLayer.addChild(this.constellationLayer)
 
     this.panZoom = new PanZoomHandler(canvas, this.camera, () => this.onUserInteraction())
@@ -96,6 +106,9 @@ export class PixiSkyRenderer {
         this.app.screen.height,
       )
       this.ambientLayer?.update(deltaMs)
+      if (this.viewMode === 'landing' && this.landingLayer) {
+        updateLandingDecorations(this.landingLayer, deltaMs)
+      }
       const bounds = this.camera.getBounds(this.app.screen.width, this.app.screen.height)
       this.culler.update(this.visuals, bounds, deltaMs)
       this.scheduleFetch(bounds)
@@ -149,6 +162,21 @@ export class PixiSkyRenderer {
     handler: (record: ConstellationRecord | null, screenX: number, screenY: number) => void,
   ): void {
     this.options.onHover = handler
+  }
+
+  setViewMode(mode: SkyViewMode): void {
+    if (this.viewMode === mode) return
+    this.viewMode = mode
+
+    if (this.landingLayer) {
+      this.landingLayer.visible = mode === 'landing'
+    }
+
+    if (this.backgroundLayer) {
+      this.backgroundLayer.alpha = mode === 'landing' ? 1 : 0.62
+    }
+
+    this.ambientLayer?.setViewMode(mode)
   }
 
   private onUserInteraction = (): void => {

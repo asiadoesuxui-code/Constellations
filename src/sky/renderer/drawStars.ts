@@ -76,3 +76,50 @@ export function addStarGraphics(
   container.addChild(star)
   return star
 }
+
+const LANDING_GOLD = 0xf5e6cc
+const LANDING_GLOW = 0xf5e6cc
+
+/** Brighter decorative stars for the landing sky — noticeably above ambient noise. */
+export function addLandingStarGraphics(
+  container: Container,
+  x: number,
+  y: number,
+  bright: boolean,
+): Graphics {
+  const outerGlow = new Graphics()
+  outerGlow.circle(x, y, bright ? 18 : 11)
+  outerGlow.fill({ color: LANDING_GLOW, alpha: bright ? 0.22 : 0.13 })
+  container.addChild(outerGlow)
+
+  const innerGlow = new Graphics()
+  innerGlow.circle(x, y, bright ? 10 : 6.5)
+  innerGlow.fill({ color: LANDING_GLOW, alpha: bright ? 0.38 : 0.24 })
+  container.addChild(innerGlow)
+
+  if (bright) {
+    const flare = new Graphics()
+    const flareLen = 20
+    flare.moveTo(x - flareLen, y)
+    flare.lineTo(x + flareLen, y)
+    flare.moveTo(x, y - flareLen)
+    flare.lineTo(x, y + flareLen)
+    flare.stroke({ color: LANDING_GOLD, width: 0.9, alpha: 0.68 })
+    container.addChild(flare)
+  }
+
+  const star = new Graphics()
+  star.circle(x, y, bright ? 4.0 : 2.8)
+  star.fill({ color: 0xffffff, alpha: bright ? 1 : 0.9 })
+  container.addChild(star)
+  return star
+}
+
+export function drawLandingConstellationLines(
+  g: Graphics,
+  stars: { x: number; y: number }[],
+  edges: [number, number][],
+  alpha = 0.68,
+): void {
+  drawConstellationLines(g, stars, edges, LANDING_GOLD, alpha)
+}

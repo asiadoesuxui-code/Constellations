@@ -37,6 +37,8 @@ export interface SubmitWishError {
   code: 'moderation' | 'rate_limit' | 'placement' | 'server'
 }
 
+export type SkyViewMode = 'landing' | 'exploring'
+
 export interface SkyCanvasRef {
   panTo(x: number, y: number, durationMs?: number): Promise<void>
   revealConstellation(record: ConstellationRecord): Promise<void>
@@ -44,6 +46,7 @@ export interface SkyCanvasRef {
   loadConstellationsFromData(constellations: ConstellationRecord[]): void
   addConstellation(record: ConstellationRecord): void
   setHighlightedId(id: string | null): void
+  setViewMode(mode: SkyViewMode): void
   setOnHover(
     callback: (wish: string | null, screenX: number, screenY: number) => void,
   ): void

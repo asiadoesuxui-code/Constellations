@@ -4,19 +4,25 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react'
-import type { BoundingBox, ConstellationRecord, SkyCanvasRef } from '../types/contracts'
+import type {
+  BoundingBox,
+  ConstellationRecord,
+  SkyCanvasRef,
+  SkyViewMode,
+} from '../types/contracts'
 import { PixiSkyRenderer } from './renderer/PixiSkyRenderer'
 import type { ConstellationHoverCallback } from './skyApi'
 import { toRecordHoverHandler } from './skyApi'
 
 export interface SkyCanvasProps {
+  viewMode?: SkyViewMode
   onHover?: ConstellationHoverCallback
   fetchConstellations?: (bounds: BoundingBox) => Promise<ConstellationRecord[]>
   onBoundsChange?: (bounds: BoundingBox) => void
 }
 
 export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCanvas(
-  { onHover, fetchConstellations, onBoundsChange },
+  { viewMode = 'landing', onHover, fetchConstellations, onBoundsChange },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -24,10 +30,12 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
   const onHoverRef = useRef(onHover)
   const fetchRef = useRef(fetchConstellations)
   const onBoundsRef = useRef(onBoundsChange)
+  const viewModeRef = useRef(viewMode)
 
   onHoverRef.current = onHover
   fetchRef.current = fetchConstellations
   onBoundsRef.current = onBoundsChange
+  viewModeRef.current = viewMode
 
   useImperativeHandle(ref, () => ({
     panTo: async (x, y, durationMs) => {
@@ -47,6 +55,9 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
     },
     setHighlightedId: (id) => {
       rendererRef.current?.setHighlightedId(id)
+    },
+    setViewMode: (mode: SkyViewMode) => {
+      rendererRef.current?.setViewMode(mode)
     },
     setOnHover: (callback) => {
       rendererRef.current?.setOnHover(toRecordHoverHandler(callback))
@@ -75,7 +86,9 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
     void renderer.init(canvas).then(() => {
       if (cancelled) {
         renderer.destroy()
+        return
       }
+      renderer.setViewMode(viewModeRef.current)
     })
 
     return () => {
@@ -86,6 +99,10 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       }
     }
   }, [])
+
+  useEffect(() => {
+    rendererRef.current?.setViewMode(viewMode)
+  }, [viewMode])
 
   return (
     <canvas

@@ -6,8 +6,8 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: rgba(5, 5, 5, 0.45);
-  backdrop-filter: blur(3px);
+  /* Light scrim only — no backdrop blur so constellations stay sharp */
+  background: rgba(5, 5, 5, 0.12);
 }
 
 .popup-card {
@@ -22,10 +22,11 @@
     radial-gradient(ellipse 90% 80% at 50% 35%, #1c1a18 0%, #121212 55%, #0e0e0e 100%) padding-box,
     linear-gradient(180deg, #e0cfae 0%, #615641 50%, #e0cfae 100%) border-box;
   box-shadow:
-    0 0 10px rgba(224, 207, 174, 0.18),
-    0 0 22px rgba(224, 207, 174, 0.1),
-    0 0 40px rgba(224, 207, 174, 0.05),
-    0 32px 64px rgba(0, 0, 0, 0.55);
+    0 0 12px rgba(224, 207, 174, 0.22),
+    0 0 28px rgba(224, 207, 174, 0.12),
+    0 0 48px rgba(224, 207, 174, 0.06),
+    0 24px 48px rgba(0, 0, 0, 0.65),
+    0 48px 96px rgba(0, 0, 0, 0.45);
 }
 
 .popup-card::before {

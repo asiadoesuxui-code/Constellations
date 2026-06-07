@@ -2,6 +2,7 @@ import { Container, Sprite, Texture } from 'pixi.js'
 import { SeededRandom } from '../generation/seededRandom'
 
 const TILE_SIZE = 2048
+export const SKY_TILE_SPACING = TILE_SIZE * 0.85
 const BAKE_SEED = 31415
 
 function addFilmGrain(ctx: CanvasRenderingContext2D, width: number, height: number): void {
@@ -130,16 +131,15 @@ export function createSkyBackground(): Sprite {
 export function createTiledBackground(parent: Container): Container {
   const layer = new Container()
   const tile = createSkyBackground()
-  const spacing = TILE_SIZE * 0.85
 
-  for (let row = -2; row <= 2; row++) {
-    for (let col = -2; col <= 2; col++) {
+  for (let row = -3; row <= 3; row++) {
+    for (let col = -3; col <= 3; col++) {
       const s = new Sprite(tile.texture)
       s.anchor.set(0.5)
       s.width = TILE_SIZE
       s.height = TILE_SIZE
-      s.x = col * spacing
-      s.y = row * spacing
+      s.x = col * SKY_TILE_SPACING
+      s.y = row * SKY_TILE_SPACING
       layer.addChild(s)
     }
   }
