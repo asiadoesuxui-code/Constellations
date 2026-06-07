@@ -11,6 +11,14 @@ export class IdleDrift {
     this.active = false
   }
 
+  pause() {
+    this.active = false
+  }
+
+  resume() {
+    this.active = true
+  }
+
   update(deltaMs: number, camera: CameraController): void {
     if (!this.active) {
       this.idleMs += deltaMs

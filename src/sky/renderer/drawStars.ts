@@ -67,11 +67,11 @@ export function addStarGraphics(
   opacity = 1,
   scale = 1,
   glow = 1,
-): Sprite {
-  addStarGlow(container, x, y, bright, glow, scale)
+): { sprite: Sprite; glow: Sprite } {
+  const glowSprite = addStarGlow(container, x, y, bright, glow, scale)
   const sprite = createStarSprite(x, y, bright, opacity, scale)
   container.addChild(sprite)
-  return sprite
+  return { sprite, glow: glowSprite }
 }
 
 const LANDING_GOLD = 0xf5e6cc

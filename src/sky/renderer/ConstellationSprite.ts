@@ -1,8 +1,20 @@
 import { Container, Graphics } from 'pixi.js'
 import type { ConstellationGeometry, ConstellationRecord } from '../../types/contracts'
+import {
+  applyStarTwinkle,
+  buildTwinkleStar,
+  createStarPhase,
+  createStarTwinkleState,
+  type StarTwinkleState,
+} from '../animations/starTwinkle'
 import { generateConstellation } from '../generation/generateConstellation'
 import { preloadConstellationAssets } from './constellationAssets'
 import { addStarGraphics, drawConstellationLines } from './drawStars'
+
+export interface CreateConstellationOptions {
+  twinkleStartMs?: number
+  twinkleFromReveal?: boolean
+}
 
 function envelopeRadius(stars: ConstellationGeometry['stars']): number {
   let max = 30
@@ -19,10 +31,12 @@ export interface ConstellationVisual {
   hitRadius: number
   alpha: number
   renderable: boolean
+  twinkle?: StarTwinkleState
 }
 
 export async function createConstellationSprite(
   record: ConstellationRecord,
+  options: CreateConstellationOptions = {},
 ): Promise<ConstellationVisual> {
   await preloadConstellationAssets()
   const geometry = generateConstellation(record.seed, record.colour_palette)
@@ -35,9 +49,27 @@ export async function createConstellationSprite(
   drawConstellationLines(lines, geometry.stars, geometry.edges, geometry.colour)
   container.addChild(lines)
 
+  const twinkleStars = []
   for (const star of geometry.stars) {
-    addStarGraphics(container, star.x, star.y, star.bright, star.opacity, star.scale, star.glow)
+    const { sprite, glow } = addStarGraphics(
+      container,
+      star.x,
+      star.y,
+      star.bright,
+      star.opacity,
+      star.scale,
+      star.glow,
+    )
+    twinkleStars.push(
+      buildTwinkleStar(sprite, glow, star.bright, star.opacity, createStarPhase(star.x, star.y)),
+    )
   }
+
+  const twinkle = createStarTwinkleState(
+    twinkleStars,
+    options.twinkleStartMs ?? performance.now(),
+    options.twinkleFromReveal ?? false,
+  )
 
   return {
     container,
@@ -45,7 +77,17 @@ export async function createConstellationSprite(
     hitRadius: envelopeRadius(geometry.stars),
     alpha: 1,
     renderable: true,
+    twinkle,
   }
+}
+
+export function updateConstellationTwinkle(
+  visual: ConstellationVisual,
+  nowMs: number,
+  deltaMs: number,
+): void {
+  if (!visual.twinkle) return
+  applyStarTwinkle(visual.twinkle, nowMs, deltaMs)
 }
 
 export function updateConstellationAlpha(visual: ConstellationVisual, alpha: number): void {

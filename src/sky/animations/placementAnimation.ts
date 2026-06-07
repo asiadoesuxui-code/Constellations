@@ -1,13 +1,23 @@
-import { Container, Graphics, Sprite } from 'pixi.js'
+import { Container, Graphics } from 'pixi.js'
 import type { ConstellationRecord } from '../../types/contracts'
 import { generateConstellation } from '../generation/generateConstellation'
 import { createStarSprite, preloadConstellationAssets } from '../renderer/constellationAssets'
 import { addStarGlow, drawDashedLine } from '../renderer/drawStars'
+import {
+  buildTwinkleStar,
+  createStarPhase,
+  createStarTwinkleState,
+  applyStarTwinkle,
+} from './starTwinkle'
+
+export interface PlacementAnimationResult {
+  startMs: number
+}
 
 export async function runPlacementAnimation(
   worldLayer: Container,
   record: ConstellationRecord,
-): Promise<void> {
+): Promise<PlacementAnimationResult> {
   await preloadConstellationAssets()
   const geometry = generateConstellation(record.seed, record.colour_palette)
   const container = new Container()
@@ -19,31 +29,26 @@ export async function runPlacementAnimation(
     const burst = new Graphics()
     container.addChild(burst)
 
-    const starSprites: Sprite[] = []
-    const starGlows: Sprite[] = []
-    const starGlowTargets: number[] = []
+    const twinkleStars = []
     const lineGraphics = new Graphics()
     container.addChild(lineGraphics)
 
     for (const star of geometry.stars) {
       const glowSprite = addStarGlow(container, star.x, star.y, star.bright, star.glow, star.scale)
-      starGlowTargets.push(glowSprite.alpha)
-      glowSprite.alpha = 0
-      starGlows.push(glowSprite)
-
       const sprite = createStarSprite(star.x, star.y, star.bright, star.opacity, star.scale)
-      sprite.alpha = 0
-      sprite.scale.set(0)
       container.addChild(sprite)
-      starSprites.push(sprite)
+      twinkleStars.push(
+        buildTwinkleStar(sprite, glowSprite, star.bright, star.opacity, createStarPhase(star.x, star.y)),
+      )
     }
 
     const startTime = performance.now()
+    const twinkleState = createStarTwinkleState(twinkleStars, startTime, true)
     const burstDuration = 300
     const starStagger = 150
     const lineStagger = 100
     const lineDuration = 200
-    const holdDuration = 3500
+    const holdDuration = 600
 
     const animate = () => {
       const elapsed = performance.now() - startTime
@@ -57,18 +62,12 @@ export async function runPlacementAnimation(
         burst.clear()
       }
 
-      geometry.stars.forEach((star, i) => {
-        const starStart = burstDuration + i * starStagger
-        const starElapsed = elapsed - starStart
-        if (starElapsed < 0) return
-        const t = Math.min(starElapsed / 300, 1)
-        const sprite = starSprites[i]
-        const glowSprite = starGlows[i]
-        const twinkle = star.bright ? 0.85 + 0.15 * Math.sin(starElapsed * 0.02) : 1
-        sprite.scale.set(t)
-        sprite.alpha = t * twinkle * star.opacity
-        glowSprite.alpha = t * twinkle * starGlowTargets[i]
+      const revealFactors = geometry.stars.map((_, i) => {
+        const starElapsed = elapsed - (burstDuration + i * starStagger)
+        if (starElapsed < 0) return 0
+        return Math.min(starElapsed / 300, 1)
       })
+      applyStarTwinkle(twinkleState, startTime + elapsed, 0, revealFactors)
 
       const linesStart = burstDuration + geometry.stars.length * starStagger
       lineGraphics.clear()
@@ -84,7 +83,7 @@ export async function runPlacementAnimation(
         drawDashedLine(lineGraphics, sa.x, sa.y, endX, endY)
       })
       if (elapsed > linesStart) {
-        lineGraphics.stroke({ color: geometry.colour, width: 0.75, alpha: 0.45 })
+        lineGraphics.stroke({ color: geometry.colour, width: 2, alpha: 0.45 })
       }
 
       const totalDuration =
@@ -94,7 +93,7 @@ export async function runPlacementAnimation(
         requestAnimationFrame(animate)
       } else {
         container.destroy({ children: true })
-        resolve()
+        resolve({ startMs: startTime })
       }
     }
 

@@ -9,6 +9,7 @@ import { SpatialGrid } from '../culling/spatialGrid'
 import { ViewportCuller } from '../culling/ViewportCuller'
 import {
   createConstellationSprite,
+  updateConstellationTwinkle,
   type ConstellationVisual,
 } from '../renderer/ConstellationSprite'
 import {
@@ -22,6 +23,7 @@ import {
 } from '../renderer/landingDecorations'
 import { createNebulaLayer } from '../renderer/NebulaLayer'
 import { createTiledBackground } from '../renderer/SkyBackground'
+import { runPlacementAnimation } from '../animations/placementAnimation'
 
 export interface SkyRendererOptions {
   onBoundsChange?: (bounds: BoundingBox) => void
@@ -116,6 +118,10 @@ export class PixiSkyRenderer {
       this.ambientLayer?.update(deltaMs)
       if (this.viewMode === 'landing' && this.landingLayer) {
         updateLandingDecorations(this.landingLayer, deltaMs)
+      }
+      const nowMs = performance.now()
+      for (const visual of this.visuals.values()) {
+        updateConstellationTwinkle(visual, nowMs, deltaMs)
       }
       const bounds = this.camera.getBounds(this.app.screen.width, this.app.screen.height)
       this.culler.update(this.visuals, bounds, deltaMs)
@@ -222,7 +228,10 @@ export class PixiSkyRenderer {
     return false
   }
 
-  async addConstellation(record: ConstellationRecord): Promise<void> {
+  async addConstellation(
+    record: ConstellationRecord,
+    options: { twinkleStartMs?: number; twinkleFromReveal?: boolean } = {},
+  ): Promise<void> {
     if (this.spatialGrid.has(record.id) || this.addingIds.has(record.id)) return
     if (record.id !== this.ownConstellationId) {
       for (const existing of this.spatialGrid.getAll()) {
@@ -234,7 +243,10 @@ export class PixiSkyRenderer {
     this.addingIds.add(record.id)
     this.spatialGrid.add(record)
     try {
-      const visual = await createConstellationSprite(record)
+      const visual = await createConstellationSprite(record, {
+        twinkleStartMs: options.twinkleStartMs,
+        twinkleFromReveal: options.twinkleFromReveal,
+      })
       if (this.visuals.has(record.id)) {
         visual.container.destroy({ children: true })
         return
@@ -248,6 +260,7 @@ export class PixiSkyRenderer {
       }
       this.visuals.set(record.id, visual)
       this.constellationLayer.addChild(visual.container)
+      updateConstellationTwinkle(visual, performance.now(), 0)
     } catch {
       this.spatialGrid.remove(record.id)
     } finally {
@@ -256,9 +269,16 @@ export class PixiSkyRenderer {
   }
 
   async revealConstellation(record: ConstellationRecord): Promise<void> {
-    this.onUserInteraction()
-    await this.camera.panTo(record.x, record.y, 1400, 1)
-    await this.addConstellation(record)
+    this.idleDrift.pause()
+    const [placement] = await Promise.all([
+      runPlacementAnimation(this.constellationLayer, record),
+      this.camera.panTo(record.x, record.y, 1400, 1),
+    ])
+    await this.addConstellation(record, {
+      twinkleStartMs: placement.startMs,
+      twinkleFromReveal: true,
+    })
+    this.idleDrift.resume()
   }
 
   revealFromWish(wish: string, x: number, y: number): Promise<void> {
@@ -287,7 +307,6 @@ export class PixiSkyRenderer {
 
   private handleHover = (e: PointerEvent) => {
     if (!this.appInitialized) return
-    this.onUserInteraction()
     const canvas = this.canvasElement
     if (!canvas) return
     const rect = canvas.getBoundingClientRect()
