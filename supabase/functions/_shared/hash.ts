@@ -20,7 +20,7 @@ export interface Position {
   y: number
 }
 
-const DEFAULT_MIN_DISTANCE = 90
+const DEFAULT_MIN_DISTANCE = 360
 const MAX_ATTEMPTS = 50
 
 function distance(a: Position, b: Position): number {

@@ -2,7 +2,7 @@ import {
   fetchNearbyPositions,
   insertConstellation,
 } from './constellations'
-import { findEmptyPosition } from './placement'
+import { CONSTELLATION_MIN_DISTANCE, findEmptyPosition } from './placement'
 import { RateLimitError, rateLimiter } from './rateLimit'
 import { moderateWish } from '../moderation'
 import { isSupabaseConfigured } from '../lib/supabase/client'
@@ -54,7 +54,7 @@ export async function submitWish(
       ? await fetchNearbyPositions(0, 0, SEARCH_RADIUS)
       : existingPositions
 
-    const position = findEmptyPosition(nearby, 90, seed)
+    const position = findEmptyPosition(nearby, CONSTELLATION_MIN_DISTANCE, seed)
 
     if (isSupabaseConfigured()) {
       const constellation = await insertConstellation(

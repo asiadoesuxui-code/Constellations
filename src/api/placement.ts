@@ -3,7 +3,10 @@ export interface Position {
   y: number
 }
 
-const DEFAULT_MIN_DISTANCE = 90
+/** Minimum center-to-center gap; constellations span ~300px in world space. */
+export const CONSTELLATION_MIN_DISTANCE = 360
+
+const DEFAULT_MIN_DISTANCE = CONSTELLATION_MIN_DISTANCE
 const MAX_ATTEMPTS = 50
 
 function distance(a: Position, b: Position): number {

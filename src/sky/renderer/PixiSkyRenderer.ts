@@ -1,4 +1,5 @@
 import { Application, Container } from 'pixi.js'
+import { CONSTELLATION_MIN_DISTANCE } from '../../api/placement'
 import type { BoundingBox, ConstellationRecord } from '../../types/contracts'
 import { recordFromWish } from '../skyApi'
 import { CameraController } from '../camera/CameraController'
@@ -46,6 +47,10 @@ export class PixiSkyRenderer {
   private options: SkyRendererOptions
   private lastFetchBounds: string | null = null
   private fetchDebounce: ReturnType<typeof setTimeout> | null = null
+  private addingIds = new Set<string>()
+  private fetchEnabled = false
+  private pendingUserFetch = false
+  private ownConstellationId: string | null = null
   private hoveredId: string | null = null
   private destroyed = false
   private initGeneration = 0
@@ -100,7 +105,7 @@ export class PixiSkyRenderer {
     canvas.addEventListener('wheel', this.onUserInteraction, { passive: true })
 
     this.app.ticker.add((ticker) => {
-      const deltaMs = ticker.deltaMS
+      const deltaMs = Math.min(ticker.deltaMS, 100)
       this.camera.update()
       this.idleDrift.update(deltaMs, this.camera)
       this.camera.applyToContainer(
@@ -117,12 +122,6 @@ export class PixiSkyRenderer {
       this.scheduleFetch(bounds)
     })
 
-    const initialBounds = this.camera.getBounds(
-      this.app.screen.width,
-      this.app.screen.height,
-      1000,
-    )
-    await this.loadBounds(initialBounds)
   }
 
   destroy(): void {
@@ -169,7 +168,12 @@ export class PixiSkyRenderer {
 
   setViewMode(mode: SkyViewMode): void {
     if (this.viewMode === mode) return
+    const wasLanding = this.viewMode === 'landing'
     this.viewMode = mode
+
+    if (wasLanding && mode === 'exploring') {
+      this.lastFetchBounds = null
+    }
 
     if (this.landingLayer) {
       this.landingLayer.visible = mode === 'landing'
@@ -182,16 +186,73 @@ export class PixiSkyRenderer {
     this.ambientLayer?.setViewMode(mode)
   }
 
+  setFetchEnabled(enabled: boolean): void {
+    this.fetchEnabled = enabled
+    if (!enabled) {
+      this.pendingUserFetch = false
+      if (this.fetchDebounce) clearTimeout(this.fetchDebounce)
+      return
+    }
+    this.lastFetchBounds = null
+  }
+
+  setOwnConstellationId(id: string | null): void {
+    this.ownConstellationId = id
+  }
+
   private onUserInteraction = (): void => {
     this.idleDrift.reset()
+    if (this.fetchEnabled) {
+      this.pendingUserFetch = true
+    }
+  }
+
+  getConstellationPositions(): { x: number; y: number }[] {
+    return this.spatialGrid.getAll().map(({ x, y }) => ({ x, y }))
+  }
+
+  private isTooCloseToExisting(x: number, y: number, excludeId?: string): boolean {
+    const minDistSq = CONSTELLATION_MIN_DISTANCE * CONSTELLATION_MIN_DISTANCE
+    for (const existing of this.spatialGrid.getAll()) {
+      if (excludeId && existing.id === excludeId) continue
+      const dx = existing.x - x
+      const dy = existing.y - y
+      if (dx * dx + dy * dy < minDistSq) return true
+    }
+    return false
   }
 
   async addConstellation(record: ConstellationRecord): Promise<void> {
-    if (this.spatialGrid.has(record.id)) return
+    if (this.spatialGrid.has(record.id) || this.addingIds.has(record.id)) return
+    if (record.id !== this.ownConstellationId) {
+      for (const existing of this.spatialGrid.getAll()) {
+        if (existing.seed === record.seed) return
+      }
+    }
+    if (this.isTooCloseToExisting(record.x, record.y, record.id)) return
+
+    this.addingIds.add(record.id)
     this.spatialGrid.add(record)
-    const visual = await createConstellationSprite(record)
-    this.visuals.set(record.id, visual)
-    this.constellationLayer.addChild(visual.container)
+    try {
+      const visual = await createConstellationSprite(record)
+      if (this.visuals.has(record.id)) {
+        visual.container.destroy({ children: true })
+        return
+      }
+      const existingChild = this.constellationLayer.children.find(
+        (child) => child.label === record.id,
+      )
+      if (existingChild) {
+        visual.container.destroy({ children: true })
+        return
+      }
+      this.visuals.set(record.id, visual)
+      this.constellationLayer.addChild(visual.container)
+    } catch {
+      this.spatialGrid.remove(record.id)
+    } finally {
+      this.addingIds.delete(record.id)
+    }
   }
 
   async revealConstellation(record: ConstellationRecord): Promise<void> {
@@ -259,30 +320,38 @@ export class PixiSkyRenderer {
   }
 
   private scheduleFetch(bounds: BoundingBox) {
+    if (!this.fetchEnabled || this.viewMode === 'landing' || !this.pendingUserFetch) return
+
     const key = `${Math.floor(bounds.minX / 500)},${Math.floor(bounds.maxX / 500)},${Math.floor(bounds.minY / 500)},${Math.floor(bounds.maxY / 500)}`
     if (key === this.lastFetchBounds) return
 
     if (this.fetchDebounce) clearTimeout(this.fetchDebounce)
     this.fetchDebounce = setTimeout(() => {
-      this.lastFetchBounds = key
-      this.loadBounds({
-        minX: bounds.minX - 500,
-        maxX: bounds.maxX + 500,
-        minY: bounds.minY - 500,
-        maxY: bounds.maxY + 500,
-      })
-      this.options.onBoundsChange?.(bounds)
+      void this.loadBounds(
+        {
+          minX: bounds.minX - 500,
+          maxX: bounds.maxX + 500,
+          minY: bounds.minY - 500,
+          maxY: bounds.maxY + 500,
+        },
+        key,
+        bounds,
+      )
     }, 300)
   }
 
-  private async loadBounds(bounds: BoundingBox) {
+  private async loadBounds(bounds: BoundingBox, boundsKey: string, viewportBounds: BoundingBox) {
     if (!this.options.fetchConstellations) return
     if (this.viewMode === 'landing') return
     try {
       const records = await this.options.fetchConstellations(bounds)
       for (const record of records) {
+        if (record.id === this.ownConstellationId) continue
         await this.addConstellation(record)
       }
+      this.lastFetchBounds = boundsKey
+      this.pendingUserFetch = false
+      this.options.onBoundsChange?.(viewportBounds)
     } catch {
       // fetch failures are non-fatal during exploration
     }

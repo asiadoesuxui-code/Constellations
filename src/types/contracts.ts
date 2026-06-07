@@ -52,6 +52,7 @@ export interface SkyCanvasRef {
   ): void
   getCameraPosition(): { x: number; y: number; zoom: number }
   worldToScreen(x: number, y: number): { x: number; y: number }
+  getConstellationPositions(): { x: number; y: number }[]
 }
 
 export type ColourPalette = ConstellationRecord['colour_palette']

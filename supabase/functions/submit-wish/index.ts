@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       .gte('y', -searchRadius)
       .lte('y', searchRadius)
 
-    const position = findEmptyPosition(nearby ?? [], 90, seed)
+    const position = findEmptyPosition(nearby ?? [], 360, seed)
 
     const { data: inserted, error: insertError } = await supabase
       .from('constellations')

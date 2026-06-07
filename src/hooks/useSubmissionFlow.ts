@@ -10,7 +10,9 @@ export type SubmissionPhase =
   | 'exploring'
   | 'error'
 
-export function useSubmissionFlow(existingPositions: { x: number; y: number }[] = []) {
+export function useSubmissionFlow(
+  getExistingPositions: () => { x: number; y: number }[] = () => [],
+) {
   const [phase, setPhase] = useState<SubmissionPhase>('idle')
   const [wish, setWish] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +24,7 @@ export function useSubmissionFlow(existingPositions: { x: number; y: number }[] 
     setPhase('submitting')
     setError(null)
 
-    const result = await submitWish(wish, existingPositions)
+    const result = await submitWish(wish, getExistingPositions())
 
     if ('error' in result) {
       setError(result.error)
@@ -33,7 +35,7 @@ export function useSubmissionFlow(existingPositions: { x: number; y: number }[] 
     setNewConstellation(result.constellation)
     setShowPopup(false)
     setPhase('revealing')
-  }, [wish, existingPositions])
+  }, [wish, getExistingPositions])
 
   const dismissPopup = useCallback(() => {
     setShowPopup(false)

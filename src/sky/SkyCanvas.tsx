@@ -16,13 +16,22 @@ import { toRecordHoverHandler } from './skyApi'
 
 export interface SkyCanvasProps {
   viewMode?: SkyViewMode
+  fetchEnabled?: boolean
+  ownConstellationId?: string | null
   onHover?: ConstellationHoverCallback
   fetchConstellations?: (bounds: BoundingBox) => Promise<ConstellationRecord[]>
   onBoundsChange?: (bounds: BoundingBox) => void
 }
 
 export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCanvas(
-  { viewMode = 'landing', onHover, fetchConstellations, onBoundsChange },
+  {
+    viewMode = 'landing',
+    fetchEnabled = false,
+    ownConstellationId = null,
+    onHover,
+    fetchConstellations,
+    onBoundsChange,
+  },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -31,11 +40,15 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
   const fetchRef = useRef(fetchConstellations)
   const onBoundsRef = useRef(onBoundsChange)
   const viewModeRef = useRef(viewMode)
+  const fetchEnabledRef = useRef(fetchEnabled)
+  const ownConstellationIdRef = useRef(ownConstellationId)
 
   onHoverRef.current = onHover
   fetchRef.current = fetchConstellations
   onBoundsRef.current = onBoundsChange
   viewModeRef.current = viewMode
+  fetchEnabledRef.current = fetchEnabled
+  ownConstellationIdRef.current = ownConstellationId
 
   useImperativeHandle(ref, () => ({
     panTo: async (x, y, durationMs) => {
@@ -66,6 +79,8 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       rendererRef.current?.getCameraPosition() ?? { x: 0, y: 0, zoom: 1 },
     worldToScreen: (x, y) =>
       rendererRef.current?.worldToScreen(x, y) ?? { x: 0, y: 0 },
+    getConstellationPositions: () =>
+      rendererRef.current?.getConstellationPositions() ?? [],
   }))
 
   useEffect(() => {
@@ -89,6 +104,8 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
         return
       }
       renderer.setViewMode(viewModeRef.current)
+      renderer.setFetchEnabled(fetchEnabledRef.current)
+      renderer.setOwnConstellationId(ownConstellationIdRef.current)
     })
 
     return () => {
@@ -103,6 +120,14 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
   useEffect(() => {
     rendererRef.current?.setViewMode(viewMode)
   }, [viewMode])
+
+  useEffect(() => {
+    rendererRef.current?.setFetchEnabled(fetchEnabled)
+  }, [fetchEnabled])
+
+  useEffect(() => {
+    rendererRef.current?.setOwnConstellationId(ownConstellationId)
+  }, [ownConstellationId])
 
   return (
     <canvas

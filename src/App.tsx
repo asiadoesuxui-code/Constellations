@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   fetchConstellationsInBounds,
   subscribeToInserts,
 } from './api/constellations'
-import { generateDemoConstellations } from './api/demoData'
 import { isSupabaseConfigured } from './lib/supabase/client'
 import { SkyCanvas } from './sky/SkyCanvas'
 import type { SkyCanvasRef } from './types/contracts'
@@ -20,23 +19,16 @@ function App() {
   const [hover, setHover] = useState<{ wish: string; x: number; y: number } | null>(null)
   const [labelPos, setLabelPos] = useState({ x: 0, y: 0 })
   const [saveBtnPos, setSaveBtnPos] = useState({ x: 0, y: 0 })
-  const flow = useSubmissionFlow()
+  const getExistingPositions = useCallback(
+    () => skyRef.current?.getConstellationPositions() ?? [],
+    [],
+  )
+  const flow = useSubmissionFlow(getExistingPositions)
 
   const fetchConstellations = useCallback(
     async (bounds: { minX: number; maxX: number; minY: number; maxY: number }) => {
-      const centerX = (bounds.minX + bounds.maxX) / 2
-      const centerY = (bounds.minY + bounds.maxY) / 2
-      const radius = Math.hypot(bounds.maxX - centerX, bounds.maxY - centerY)
-
-      if (isSupabaseConfigured()) {
-        return fetchConstellationsInBounds(bounds)
-      }
-      const demos = generateDemoConstellations()
-      return demos.filter((c) => {
-        const dx = c.x - centerX
-        const dy = c.y - centerY
-        return dx * dx + dy * dy <= radius * radius
-      })
+      if (!isSupabaseConfigured()) return []
+      return fetchConstellationsInBounds(bounds)
     },
     [],
   )
@@ -53,8 +45,14 @@ function App() {
     [flow.phase],
   )
 
+  const ownConstellationIdRef = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    ownConstellationIdRef.current = flow.newConstellation?.id ?? null
+  }, [flow.newConstellation])
+
   useEffect(() => {
     return subscribeToInserts((record) => {
+      if (record.id === ownConstellationIdRef.current) return
       skyRef.current?.addConstellation(record)
     })
   }, [])
@@ -105,6 +103,8 @@ function App() {
       <SkyCanvas
         ref={skyRef}
         viewMode={flow.showPopup ? 'landing' : 'exploring'}
+        fetchEnabled={flow.phase === 'exploring'}
+        ownConstellationId={flow.newConstellation?.id ?? null}
         fetchConstellations={fetchConstellations}
         onHover={handleHover}
       />
