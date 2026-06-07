@@ -18,12 +18,12 @@ export interface LandingConstellationPlacement {
   alpha?: number
 }
 
-/** Four Figma exports — one anchored near each viewport corner. */
+/** Asymmetric sky — one corner accent, two flanking the popup, one in open upper sky. */
 export const LANDING_CONSTELLATIONS: LandingConstellationPlacement[] = [
-  { src: '/landing/constellation-2.png', width: 324, height: 338, anchorX: -0.9, anchorY: -0.74 },
-  { src: '/landing/constellation-3.png', width: 290, height: 279, anchorX: 0.9, anchorY: -0.7 },
-  { src: '/landing/constellation.png', width: 524, height: 413, anchorX: -0.84, anchorY: 0.78 },
-  { src: '/landing/constellation-5.png', width: 188, height: 188, anchorX: 0.84, anchorY: 0.74, scale: 1.15 },
+  { src: '/landing/constellation-2.png', width: 324, height: 338, anchorX: -0.42, anchorY: -0.58 },
+  { src: '/landing/constellation-3.png', width: 290, height: 279, anchorX: 0.76, anchorY: -0.66 },
+  { src: '/landing/constellation.png', width: 524, height: 413, anchorX: -0.50, anchorY: 0.22 },
+  { src: '/landing/constellation-5.png', width: 188, height: 188, anchorX: 0.36, anchorY: 0.44, scale: 1.15 },
 ]
 
 function placeCenter(
