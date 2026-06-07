@@ -1,7 +1,7 @@
 import { Application, Container } from 'pixi.js'
 import { CONSTELLATION_MIN_DISTANCE } from '../../api/placement'
 import { getSeedConstellations } from '../../api/seedConstellations'
-import type { BoundingBox, ConstellationLabelTarget, ConstellationRecord } from '../../types/contracts'
+import type { BoundingBox, ConstellationLabelTarget, ConstellationRecord, SkyCaptureResult } from '../../types/contracts'
 import { recordFromWish } from '../skyApi'
 import { cameraPanDurationMs, CameraController } from '../camera/CameraController'
 import { IdleDrift } from '../camera/idleDrift'
@@ -32,6 +32,7 @@ import {
 import { preloadConstellationAssets } from '../renderer/constellationAssets'
 import { createNebulaLayer } from '../renderer/NebulaLayer'
 import { createTiledBackground } from '../renderer/SkyBackground'
+import { drawCaptureLabels } from './drawCaptureLabels'
 
 export interface SkyRendererOptions {
   onBoundsChange?: (bounds: BoundingBox) => void
@@ -414,6 +415,135 @@ export class PixiSkyRenderer {
 
   worldToScreen(x: number, y: number) {
     return this.camera.worldToScreen(x, y, this.app.screen.width, this.app.screen.height)
+  }
+
+  captureConstellationSky(
+    constellationId: string,
+    orientation: 'landscape' | 'portrait',
+  ): SkyCaptureResult | null {
+    if (!this.appInitialized) return null
+
+    const visual = this.visuals.get(constellationId)
+    if (!visual) return null
+
+    this.app.renderer.render(this.app.stage)
+
+    const screenW = this.app.screen.width
+    const screenH = this.app.screen.height
+    const resolution = this.app.renderer.resolution
+    const aspect = orientation === 'landscape' ? 16 / 9 : 3 / 4
+    const zoom = this.camera.zoom
+
+    const bounds = visual.container.getBounds()
+    let rawX = bounds.x
+    let rawY = bounds.y
+    let rawRight = bounds.x + bounds.width
+    let rawBottom = bounds.y + bounds.height
+
+    const ownLabel = this.getConstellationLabels().find((l) => l.id === constellationId)
+    if (ownLabel) {
+      const labelBounds = this.getLabelScreenBounds(ownLabel, zoom)
+      rawX = Math.min(rawX, labelBounds.x)
+      rawY = Math.min(rawY, labelBounds.y)
+      rawRight = Math.max(rawRight, labelBounds.right)
+      rawBottom = Math.max(rawBottom, labelBounds.bottom)
+    }
+
+    const edgePad = 14
+    rawX -= edgePad
+    rawY -= edgePad
+    rawRight += edgePad
+    rawBottom += edgePad
+
+    const contentW = rawRight - rawX
+    const contentH = rawBottom - rawY
+    if (contentW <= 0 || contentH <= 0) return null
+
+    let cropW = contentW
+    let cropH = contentH
+    if (cropW / cropH < aspect) {
+      cropW = cropH * aspect
+    } else {
+      cropH = cropW / aspect
+    }
+
+    const centerX = (rawX + rawRight) / 2
+    const centerY = (rawY + rawBottom) / 2
+    const cropX = centerX - cropW / 2
+    const cropY = centerY - cropH / 2
+
+    const source = this.app.canvas as HTMLCanvasElement
+    const outW = Math.max(1, Math.round(cropW * resolution))
+    const outH = Math.max(1, Math.round(cropH * resolution))
+
+    const output = document.createElement('canvas')
+    output.width = outW
+    output.height = outH
+    const ctx = output.getContext('2d')
+    if (!ctx) return null
+
+    ctx.fillStyle = '#0a0a0a'
+    ctx.fillRect(0, 0, outW, outH)
+
+    const srcLeft = Math.max(0, cropX)
+    const srcTop = Math.max(0, cropY)
+    const srcRight = Math.min(screenW, cropX + cropW)
+    const srcBottom = Math.min(screenH, cropY + cropH)
+    const srcW = srcRight - srcLeft
+    const srcH = srcBottom - srcTop
+    if (srcW <= 0 || srcH <= 0) return null
+
+    const destX = Math.round((srcLeft - cropX) * resolution)
+    const destY = Math.round((srcTop - cropY) * resolution)
+    const destW = Math.round(srcW * resolution)
+    const destH = Math.round(srcH * resolution)
+
+    ctx.drawImage(
+      source,
+      Math.round(srcLeft * resolution),
+      Math.round(srcTop * resolution),
+      destW,
+      destH,
+      destX,
+      destY,
+      destW,
+      destH,
+    )
+
+    drawCaptureLabels(ctx, this.getConstellationLabels(), {
+      cropX,
+      cropY,
+      cropW,
+      cropH,
+      outW,
+      outH,
+      zoom,
+    })
+
+    return {
+      dataUrl: output.toDataURL('image/png'),
+      width: cropW,
+      height: cropH,
+    }
+  }
+
+  private getLabelScreenBounds(
+    label: ConstellationLabelTarget,
+    zoom: number,
+  ): { x: number; y: number; right: number; bottom: number } {
+    const showWish = zoom >= 0.7 && Boolean(label.wish.trim())
+    const wishH = showWish ? 25 : 0
+    const nameH = 17
+    const gap = showWish ? 4.8 : 0
+    const height = wishH + gap + nameH
+    const halfW = 140
+
+    return {
+      x: label.screenX - halfW,
+      y: label.screenY - height,
+      right: label.screenX + halfW,
+      bottom: label.screenY,
+    }
   }
 
   getConstellationLabels(): ConstellationLabelTarget[] {

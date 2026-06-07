@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   fetchConstellationsInBounds,
   subscribeToInserts,
@@ -8,8 +8,13 @@ import { SkyCanvas } from './sky/SkyCanvas'
 import type { SkyCanvasRef } from './types/contracts'
 import { LandingPopup } from './components/LandingPopup'
 import { SkyConstellationLabels } from './components/SkyConstellationLabels'
-import { ShareCard } from './components/ShareCard'
-import { captureShareCard, downloadImage } from './components/shareCardCapture'
+import { SaveConstellationPopup } from './components/SaveConstellationPopup'
+import {
+  downloadImage,
+  getShareCardOrientation,
+  type ShareCardOrientation,
+} from './components/shareCardCapture'
+import type { SkyCaptureResult } from './types/contracts'
 import { useSubmissionFlow } from './hooks/useSubmissionFlow'
 import './styles/popup.css'
 
@@ -56,9 +61,29 @@ function App() {
     }
   }, [flow.phase, flow.newConstellation, onRevealComplete])
 
+  const [sharePreview, setSharePreview] = useState<
+    (SkyCaptureResult & { orientation: ShareCardOrientation }) | null
+  >(null)
+
   const handleSaveCard = async () => {
-    const dataUrl = await captureShareCard()
-    if (dataUrl) downloadImage(dataUrl)
+    const record = flow.newConstellation
+    if (!record) return
+
+    await document.fonts.ready
+
+    const orientation = getShareCardOrientation()
+    const capture = skyRef.current?.captureConstellationSky(record.id, orientation)
+    if (!capture) return
+
+    setSharePreview({ ...capture, orientation })
+  }
+
+  const handleDownloadShare = () => {
+    if (sharePreview) downloadImage(sharePreview.dataUrl)
+  }
+
+  const handleDismissShare = () => {
+    setSharePreview(null)
     flow.dismissCard()
   }
 
@@ -92,16 +117,25 @@ function App() {
 
       <SkyConstellationLabels
         skyRef={skyRef}
-        visible={!flow.showPopup}
+        visible={!flow.showPopup && !sharePreview}
       />
 
-      {flow.showSaveCard && (
+      {flow.showSaveCard && !sharePreview && (
         <button type="button" className="save-card-btn" onClick={handleSaveCard}>
           Save your constellation
         </button>
       )}
 
-      <ShareCard record={flow.newConstellation} />
+      {sharePreview && flow.newConstellation && (
+        <SaveConstellationPopup
+          visible
+          skyDataUrl={sharePreview.dataUrl}
+          captureWidth={sharePreview.width}
+          captureHeight={sharePreview.height}
+          onDownload={handleDownloadShare}
+          onDismiss={handleDismissShare}
+        />
+      )}
     </div>
   )
 }

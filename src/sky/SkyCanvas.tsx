@@ -83,6 +83,8 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       rendererRef.current?.getConstellationPositions() ?? [],
     getConstellationLabels: () =>
       rendererRef.current?.getConstellationLabels() ?? [],
+    captureConstellationSky: (constellationId, orientation) =>
+      rendererRef.current?.captureConstellationSky(constellationId, orientation) ?? null,
   }))
 
   useEffect(() => {

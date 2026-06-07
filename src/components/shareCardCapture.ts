@@ -1,12 +1,7 @@
-export async function captureShareCard(): Promise<string | null> {
-  const element = document.getElementById('share-card')
-  if (!element) return null
+export type ShareCardOrientation = 'landscape' | 'portrait'
 
-  const { toPng } = await import('html-to-image')
-  return toPng(element, {
-    pixelRatio: 2,
-    backgroundColor: '#050314',
-  })
+export function getShareCardOrientation(): ShareCardOrientation {
+  return window.matchMedia('(max-width: 768px)').matches ? 'portrait' : 'landscape'
 }
 
 export function downloadImage(dataUrl: string, filename = 'my-constellation.png') {

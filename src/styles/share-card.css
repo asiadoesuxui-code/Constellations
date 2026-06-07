@@ -1,40 +1,107 @@
-.share-card {
-  width: 400px;
-  padding: 2.5rem 2rem 2rem;
-  background: linear-gradient(180deg, #0d0a22 0%, #050314 100%);
-  border-radius: 16px;
+.save-popup-overlay {
+  z-index: 110;
+}
+
+.share-popup-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 92vw;
+  max-height: 92vh;
+}
+
+.share-card-capture.popup-card {
+  max-width: none;
+  margin: 0;
+  padding: 2.75rem 3rem 2.5rem;
   text-align: center;
-  font-family: var(--font-serif);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
-.share-card-constellation {
-  width: 200px;
-  height: 200px;
-  margin: 0 auto 1.5rem;
+.share-card-sky {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #0a0a0a;
+  border: 1px solid rgba(224, 207, 174, 0.28);
+  box-shadow:
+    inset 0 0 0 1px rgba(97, 86, 65, 0.16),
+    inset 0 0 24px rgba(0, 0, 0, 0.45);
+  line-height: 0;
 }
 
-.share-card-wish {
-  font-size: 1.25rem;
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.5;
-  margin: 0 0 2rem;
+.share-card-sky img {
+  display: block;
+  max-width: min(92vw, 100%);
+  max-height: min(60vh, 100%);
+  width: auto;
+  height: auto;
 }
 
-.share-card-brand {
-  font-family: var(--font-serif);
-  font-size: 0.6875rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+.share-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: 1.75rem;
+  padding-top: 0;
 }
 
-.share-card-brand span {
-  color: var(--accent-violet);
+.share-card-tagline {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.875rem);
+  text-align: left;
+  flex: 1;
+  min-width: 0;
 }
 
-.share-card-offscreen {
-  position: fixed;
-  left: -9999px;
-  top: 0;
+.share-card-footer .submit-btn {
+  margin: 0;
+  flex-shrink: 0;
+  min-width: 0;
+  padding-left: 1.75rem;
+  padding-right: 1.75rem;
+}
+
+@media (max-width: 768px) {
+  .share-card-capture.popup-card {
+    padding: 2.5rem 1.75rem 2rem;
+  }
+
+  .save-popup-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .share-popup-panel {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+  }
+
+  .share-card-capture.popup-card {
+    border-radius: 32px 32px 0 0;
+  }
+
+  .share-card-sky img {
+    max-width: 100%;
+    max-height: min(55vh, 100%);
+  }
+
+  .share-card-footer {
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .share-card-tagline {
+    font-size: 1.2rem;
+  }
+
+  .share-card-footer .submit-btn {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    font-size: 1rem;
+  }
 }

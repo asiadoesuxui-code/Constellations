@@ -50,6 +50,12 @@ export interface ConstellationLabelTarget {
   isOwn: boolean
 }
 
+export interface SkyCaptureResult {
+  dataUrl: string
+  width: number
+  height: number
+}
+
 export interface SkyCanvasRef {
   panTo(x: number, y: number, durationMs?: number): Promise<void>
   revealConstellation(record: ConstellationRecord): Promise<void>
@@ -65,6 +71,10 @@ export interface SkyCanvasRef {
   worldToScreen(x: number, y: number): { x: number; y: number }
   getConstellationPositions(): { x: number; y: number }[]
   getConstellationLabels(): ConstellationLabelTarget[]
+  captureConstellationSky(
+    constellationId: string,
+    orientation: 'landscape' | 'portrait',
+  ): SkyCaptureResult | null
 }
 
 export type ColourPalette = ConstellationRecord['colour_palette']
