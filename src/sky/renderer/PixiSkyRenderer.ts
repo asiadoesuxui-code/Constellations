@@ -275,6 +275,7 @@ export class PixiSkyRenderer {
 
   private async loadBounds(bounds: BoundingBox) {
     if (!this.options.fetchConstellations) return
+    if (this.viewMode === 'landing') return
     try {
       const records = await this.options.fetchConstellations(bounds)
       for (const record of records) {
