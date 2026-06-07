@@ -55,6 +55,8 @@ export class PixiSkyRenderer {
   private pendingUserFetch = false
   private ownConstellationId: string | null = null
   private hoveredId: string | null = null
+  private clickStart: { x: number; y: number; pointerId: number } | null = null
+  private focusing = false
   private destroyed = false
   private initGeneration = 0
   private canvasElement: HTMLCanvasElement | null = null
@@ -104,6 +106,8 @@ export class PixiSkyRenderer {
 
     this.panZoom = new PanZoomHandler(canvas, this.camera, () => this.onUserInteraction())
 
+    canvas.addEventListener('pointerdown', this.handlePointerDown)
+    canvas.addEventListener('pointerup', this.handlePointerUp)
     canvas.addEventListener('pointermove', this.handleHover)
     canvas.addEventListener('pointerleave', this.handlePointerLeave)
     canvas.addEventListener('wheel', this.onUserInteraction, { passive: true })
@@ -140,6 +144,8 @@ export class PixiSkyRenderer {
 
     const canvas = this.canvasElement
     if (canvas) {
+      canvas.removeEventListener('pointerdown', this.handlePointerDown)
+      canvas.removeEventListener('pointerup', this.handlePointerUp)
       canvas.removeEventListener('pointermove', this.handleHover)
       canvas.removeEventListener('pointerleave', this.handlePointerLeave)
       canvas.removeEventListener('wheel', this.onUserInteraction)
@@ -290,6 +296,21 @@ export class PixiSkyRenderer {
     this.idleDrift.resume()
   }
 
+  async focusConstellation(record: ConstellationRecord): Promise<void> {
+    if (this.viewMode !== 'exploring' || this.focusing) return
+
+    const focusZoom = this.camera.zoom < 0.92 ? 1 : Math.max(this.camera.zoom, 1)
+    this.focusing = true
+    this.idleDrift.pause()
+    this.onUserInteraction()
+    try {
+      await this.camera.panTo(record.x, record.y, 1000, focusZoom)
+    } finally {
+      this.focusing = false
+      this.idleDrift.resume()
+    }
+  }
+
   revealFromWish(wish: string, x: number, y: number): Promise<void> {
     return this.revealConstellation(recordFromWish(wish, x, y))
   }
@@ -319,7 +340,7 @@ export class PixiSkyRenderer {
       if (!visual.renderable || visual.alpha < 0.08) continue
       if (!visual.record.name) continue
 
-      const labelWorldY = visual.record.y - visual.hitRadius - 48
+      const labelWorldY = visual.record.y - visual.hitRadius - 12
       const screen = this.camera.worldToScreen(
         visual.record.x,
         labelWorldY,
@@ -342,35 +363,70 @@ export class PixiSkyRenderer {
   }
 
   private handlePointerLeave = (): void => {
+    this.clickStart = null
+    if (this.canvasElement) this.canvasElement.style.cursor = ''
     if (this.hoveredId === null) return
     this.hoveredId = null
     this.options.onHover?.(null, 0, 0)
+  }
+
+  private handlePointerDown = (e: PointerEvent): void => {
+    if (this.viewMode !== 'exploring' || e.button !== 0) return
+    this.clickStart = { x: e.clientX, y: e.clientY, pointerId: e.pointerId }
+  }
+
+  private handlePointerUp = (e: PointerEvent): void => {
+    if (!this.clickStart || this.clickStart.pointerId !== e.pointerId) return
+
+    const dx = e.clientX - this.clickStart.x
+    const dy = e.clientY - this.clickStart.y
+    this.clickStart = null
+
+    if (dx * dx + dy * dy > 100) return
+    if (this.viewMode !== 'exploring') return
+
+    const record = this.findConstellationAtScreen(e.clientX, e.clientY)
+    if (record) void this.focusConstellation(record)
+  }
+
+  private findConstellationAtScreen(clientX: number, clientY: number): ConstellationRecord | null {
+    if (!this.appInitialized || !this.canvasElement) return null
+
+    const rect = this.canvasElement.getBoundingClientRect()
+    const world = this.camera.screenToWorld(
+      clientX - rect.left,
+      clientY - rect.top,
+      this.app.screen.width,
+      this.app.screen.height,
+    )
+
+    let found: ConstellationRecord | null = null
+    let bestDistSq = Infinity
+
+    for (const visual of this.visuals.values()) {
+      if (!visual.renderable || visual.alpha < 0.1) continue
+      const dx = world.x - visual.record.x
+      const dy = world.y - visual.record.y
+      const distSq = dx * dx + dy * dy
+      const hitRadiusSq = visual.hitRadius * visual.hitRadius
+      if (distSq <= hitRadiusSq && distSq < bestDistSq) {
+        bestDistSq = distSq
+        found = visual.record
+      }
+    }
+
+    return found
   }
 
   private handleHover = (e: PointerEvent) => {
     if (!this.appInitialized) return
     const canvas = this.canvasElement
     if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const sx = e.clientX - rect.left
-    const sy = e.clientY - rect.top
-    const world = this.camera.screenToWorld(
-      sx,
-      sy,
-      this.app.screen.width,
-      this.app.screen.height,
-    )
 
-    let found: ConstellationRecord | null = null
-    for (const visual of this.visuals.values()) {
-      if (!visual.renderable || visual.alpha < 0.1) continue
-      const dx = world.x - visual.record.x
-      const dy = world.y - visual.record.y
-      if (dx * dx + dy * dy <= visual.hitRadius * visual.hitRadius) {
-        found = visual.record
-        break
-      }
-    }
+    const found = this.findConstellationAtScreen(e.clientX, e.clientY)
+    const canFocus = this.viewMode === 'exploring'
+
+    canvas.style.cursor = found && canFocus ? 'pointer' : ''
 
     if (found?.id !== this.hoveredId) {
       this.hoveredId = found?.id ?? null
