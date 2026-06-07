@@ -197,7 +197,7 @@ export class PixiSkyRenderer {
 
   async revealConstellation(record: ConstellationRecord): Promise<void> {
     this.onUserInteraction()
-    await this.camera.panTo(record.x, record.y, 1400)
+    await this.camera.panTo(record.x, record.y, 1400, 1)
     await runPlacementAnimation(this.constellationLayer, record)
     this.addConstellation(record)
   }

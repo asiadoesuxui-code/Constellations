@@ -84,8 +84,8 @@ function App() {
         flow.newConstellation!.y,
       )
       if (screen) {
-        setLabelPos({ x: screen.x, y: screen.y - 20 })
-        setSaveBtnPos({ x: screen.x, y: screen.y + 60 })
+        setLabelPos({ x: screen.x, y: screen.y - 130 })
+        setSaveBtnPos({ x: screen.x, y: screen.y + 150 })
       }
     }
 

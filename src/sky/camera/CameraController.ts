@@ -16,6 +16,8 @@ export class CameraController {
     startY: number
     targetX: number
     targetY: number
+    startZoom: number
+    targetZoom: number
     startTime: number
     duration: number
     resolve: () => void
@@ -46,7 +48,12 @@ export class CameraController {
     }
   }
 
-  panTo(targetX: number, targetY: number, durationMs = 1200): Promise<void> {
+  panTo(
+    targetX: number,
+    targetY: number,
+    durationMs = 1200,
+    targetZoom = this.zoom,
+  ): Promise<void> {
     if (this.tween) {
       this.tween.resolve()
       this.tween = null
@@ -58,6 +65,8 @@ export class CameraController {
         startY: this.y,
         targetX,
         targetY,
+        startZoom: this.zoom,
+        targetZoom,
         startTime: performance.now(),
         duration: durationMs,
         resolve,
@@ -72,6 +81,7 @@ export class CameraController {
     const eased = 1 - Math.pow(1 - t, 3)
     this.x = this.tween.startX + (this.tween.targetX - this.tween.startX) * eased
     this.y = this.tween.startY + (this.tween.targetY - this.tween.startY) * eased
+    this.zoom = this.tween.startZoom + (this.tween.targetZoom - this.tween.startZoom) * eased
     if (t >= 1) {
       this.tween.resolve()
       this.tween = null

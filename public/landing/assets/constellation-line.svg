@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="4" viewBox="0 0 120 4">
+  <!-- Reference stroke for connecting stars  matches landing Figma constellations -->
+  <line
+    x1="0"
+    y1="2"
+    x2="120"
+    y2="2"
+    stroke="#D4C4A8"
+    stroke-width="1"
+    stroke-opacity="0.42"
+    stroke-linecap="round"
+  />
+</svg>
