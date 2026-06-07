@@ -158,7 +158,7 @@ export class PixiSkyRenderer {
 
   loadConstellationsFromData(constellations: ConstellationRecord[]): void {
     for (const record of constellations) {
-      this.addConstellation(record)
+      void this.addConstellation(record)
     }
   }
 
@@ -187,10 +187,10 @@ export class PixiSkyRenderer {
     this.idleDrift.reset()
   }
 
-  addConstellation(record: ConstellationRecord): void {
+  async addConstellation(record: ConstellationRecord): Promise<void> {
     if (this.spatialGrid.has(record.id)) return
     this.spatialGrid.add(record)
-    const visual = createConstellationSprite(record)
+    const visual = await createConstellationSprite(record)
     this.visuals.set(record.id, visual)
     this.constellationLayer.addChild(visual.container)
   }
@@ -199,7 +199,7 @@ export class PixiSkyRenderer {
     this.onUserInteraction()
     await this.camera.panTo(record.x, record.y, 1400, 1)
     await runPlacementAnimation(this.constellationLayer, record)
-    this.addConstellation(record)
+    await this.addConstellation(record)
   }
 
   revealFromWish(wish: string, x: number, y: number): Promise<void> {
@@ -283,7 +283,7 @@ export class PixiSkyRenderer {
     try {
       const records = await this.options.fetchConstellations(bounds)
       for (const record of records) {
-        this.addConstellation(record)
+        await this.addConstellation(record)
       }
     } catch {
       // fetch failures are non-fatal during exploration

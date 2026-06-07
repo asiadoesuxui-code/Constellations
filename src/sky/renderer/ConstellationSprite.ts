@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js'
 import type { ConstellationGeometry, ConstellationRecord } from '../../types/contracts'
 import { generateConstellation } from '../generation/generateConstellation'
+import { preloadConstellationAssets } from './constellationAssets'
 import { addStarGraphics, drawConstellationLines } from './drawStars'
 
 function envelopeRadius(stars: ConstellationGeometry['stars']): number {
@@ -20,7 +21,10 @@ export interface ConstellationVisual {
   renderable: boolean
 }
 
-export function createConstellationSprite(record: ConstellationRecord): ConstellationVisual {
+export async function createConstellationSprite(
+  record: ConstellationRecord,
+): Promise<ConstellationVisual> {
+  await preloadConstellationAssets()
   const geometry = generateConstellation(record.seed, record.colour_palette)
   const container = new Container()
   container.x = record.x
@@ -32,7 +36,7 @@ export function createConstellationSprite(record: ConstellationRecord): Constell
   container.addChild(lines)
 
   for (const star of geometry.stars) {
-    addStarGraphics(container, star.x, star.y, star.bright, geometry.colour, geometry.glowColour)
+    addStarGraphics(container, star.x, star.y, star.bright)
   }
 
   return {

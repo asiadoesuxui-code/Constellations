@@ -1,3 +1,7 @@
+import { Sprite, Texture } from 'pixi.js'
+import starDotUrl from '../../../public/landing/assets/star-dot.png?url'
+import starSparkleUrl from '../../../public/landing/assets/star-sparkle.png?url'
+
 /** Warm gold from Figma exports (line.svg fill) */
 export const DESIGN_GOLD = '#D1BCA0'
 
@@ -14,11 +18,14 @@ export const STAR_DOT_SIZE = 33
 export const STAR_SPARKLE_SIZE = 93
 export const STAR_HALO_PAD = Math.ceil(STAR_SPARKLE_SIZE / 2)
 
-const STAR_DOT_URL = '/landing/assets/star-dot.png'
-const STAR_SPARKLE_URL = '/landing/assets/star-sparkle.png'
+/** World-space display size — matches the old Graphics circle footprint */
+export const DOT_WORLD_SIZE = 2.2 * 2
+export const SPARKLE_WORLD_SIZE = 28
 
 let dotImage: HTMLImageElement | null = null
 let sparkleImage: HTMLImageElement | null = null
+let dotTexture: Texture | null = null
+let sparkleTexture: Texture | null = null
 let loadPromise: Promise<void> | null = null
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -31,19 +38,33 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 export function preloadConstellationAssets(): Promise<void> {
-  if (dotImage && sparkleImage) return Promise.resolve()
+  if (dotImage && sparkleImage && dotTexture && sparkleTexture) return Promise.resolve()
   if (loadPromise) return loadPromise
-  loadPromise = Promise.all([loadImage(STAR_DOT_URL), loadImage(STAR_SPARKLE_URL)]).then(
+  loadPromise = Promise.all([loadImage(starDotUrl), loadImage(starSparkleUrl)]).then(
     ([dot, sparkle]) => {
       dotImage = dot
       sparkleImage = sparkle
+      dotTexture = Texture.from(dot)
+      sparkleTexture = Texture.from(sparkle)
     },
   )
   return loadPromise
 }
 
 export function constellationAssetsReady(): boolean {
-  return dotImage !== null && sparkleImage !== null
+  return dotTexture !== null && sparkleTexture !== null
+}
+
+export function createStarSprite(x: number, y: number, bright: boolean): Sprite {
+  const texture = bright ? sparkleTexture! : dotTexture!
+  const sprite = new Sprite(texture)
+  sprite.anchor.set(0.5)
+  sprite.x = x
+  sprite.y = y
+  const size = bright ? SPARKLE_WORLD_SIZE : DOT_WORLD_SIZE
+  sprite.width = size
+  sprite.height = size
+  return sprite
 }
 
 export function drawStarAsset(
@@ -55,7 +76,7 @@ export function drawStarAsset(
 ): void {
   const img = bright ? sparkleImage : dotImage
   if (!img) return
-  const size = bright ? STAR_SPARKLE_SIZE : STAR_DOT_SIZE
+  const size = bright ? SPARKLE_WORLD_SIZE : DOT_WORLD_SIZE
   ctx.save()
   ctx.globalAlpha = alpha
   ctx.drawImage(img, x - size / 2, y - size / 2, size, size)
@@ -71,3 +92,5 @@ export function applyLineStyle(ctx: CanvasRenderingContext2D): void {
   ctx.lineWidth = width
   ctx.lineCap = cap
 }
+
+void preloadConstellationAssets()

@@ -51,7 +51,7 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       rendererRef.current?.loadConstellationsFromData(constellations)
     },
     addConstellation: (record) => {
-      rendererRef.current?.addConstellation(record)
+      void rendererRef.current?.addConstellation(record)
     },
     setHighlightedId: (id) => {
       rendererRef.current?.setHighlightedId(id)

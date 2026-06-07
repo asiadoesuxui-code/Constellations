@@ -46,7 +46,7 @@ export function loadConstellationsFromData(
   constellations: ConstellationData[],
 ): void {
   for (const record of constellations) {
-    renderer.addConstellation(record)
+    void renderer.addConstellation(record)
   }
 }
 

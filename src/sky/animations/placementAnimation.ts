@@ -1,12 +1,14 @@
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, Sprite } from 'pixi.js'
 import type { ConstellationRecord } from '../../types/contracts'
 import { generateConstellation } from '../generation/generateConstellation'
+import { createStarSprite, preloadConstellationAssets } from '../renderer/constellationAssets'
 import { drawDashedLine } from '../renderer/drawStars'
 
-export function runPlacementAnimation(
+export async function runPlacementAnimation(
   worldLayer: Container,
   record: ConstellationRecord,
 ): Promise<void> {
+  await preloadConstellationAssets()
   const geometry = generateConstellation(record.seed, record.colour_palette)
   const container = new Container()
   container.x = record.x
@@ -17,16 +19,16 @@ export function runPlacementAnimation(
     const burst = new Graphics()
     container.addChild(burst)
 
-    const starGraphics: Graphics[] = []
+    const starSprites: Sprite[] = []
     const lineGraphics = new Graphics()
     container.addChild(lineGraphics)
 
-    for (let i = 0; i < geometry.stars.length; i++) {
-      const g = new Graphics()
-      g.alpha = 0
-      g.scale.set(0)
-      container.addChild(g)
-      starGraphics.push(g)
+    for (const star of geometry.stars) {
+      const sprite = createStarSprite(star.x, star.y, star.bright)
+      sprite.alpha = 0
+      sprite.scale.set(0)
+      container.addChild(sprite)
+      starSprites.push(sprite)
     }
 
     const startTime = performance.now()
@@ -53,26 +55,10 @@ export function runPlacementAnimation(
         const starElapsed = elapsed - starStart
         if (starElapsed < 0) return
         const t = Math.min(starElapsed / 300, 1)
-        const g = starGraphics[i]
+        const sprite = starSprites[i]
         const twinkle = star.bright ? 0.85 + 0.15 * Math.sin(starElapsed * 0.02) : 1
-        g.clear()
-        g.scale.set(t)
-        g.alpha = t * twinkle
-
-        if (star.bright) {
-          const flareLen = 14 * t
-          g.moveTo(star.x - flareLen, star.y)
-          g.lineTo(star.x + flareLen, star.y)
-          g.moveTo(star.x, star.y - flareLen)
-          g.lineTo(star.x, star.y + flareLen)
-          g.stroke({ color: geometry.colour, width: 0.75, alpha: 0.55 * twinkle })
-          g.circle(star.x, star.y, 10 * t)
-          g.fill({ color: geometry.glowColour, alpha: 0.32 * twinkle })
-        }
-
-        const radius = (star.bright ? 3.6 : 2.2) * t
-        g.circle(star.x, star.y, radius)
-        g.fill({ color: geometry.colour, alpha: (star.bright ? 1 : 0.82) * twinkle })
+        sprite.scale.set(t)
+        sprite.alpha = t * twinkle
       })
 
       const linesStart = burstDuration + geometry.stars.length * starStagger

@@ -1,4 +1,5 @@
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, Sprite } from 'pixi.js'
+import { createStarSprite } from './constellationAssets'
 
 export function drawDashedLine(
   g: Graphics,
@@ -50,31 +51,10 @@ export function addStarGraphics(
   x: number,
   y: number,
   bright: boolean,
-  color: string | number,
-  glowColour: string | number,
-): Graphics {
-  if (bright) {
-    const glow = new Graphics()
-    glow.circle(x, y, 10)
-    glow.fill({ color: glowColour, alpha: 0.32 })
-    container.addChild(glow)
-
-    const flare = new Graphics()
-    const flareLen = 14
-    flare.moveTo(x - flareLen, y)
-    flare.lineTo(x + flareLen, y)
-    flare.moveTo(x, y - flareLen)
-    flare.lineTo(x, y + flareLen)
-    flare.stroke({ color, width: 0.75, alpha: 0.55 })
-    container.addChild(flare)
-  }
-
-  const star = new Graphics()
-  const radius = bright ? 3.6 : 2.2
-  star.circle(x, y, radius)
-  star.fill({ color, alpha: bright ? 1 : 0.82 })
-  container.addChild(star)
-  return star
+): Sprite {
+  const sprite = createStarSprite(x, y, bright)
+  container.addChild(sprite)
+  return sprite
 }
 
 const LANDING_GOLD = 0xf5e6cc
