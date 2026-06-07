@@ -18,7 +18,6 @@ function App() {
   const skyRef = useRef<SkyCanvasRef>(null)
   const [hover, setHover] = useState<{ wish: string; x: number; y: number } | null>(null)
   const [labelPos, setLabelPos] = useState({ x: 0, y: 0 })
-  const [saveBtnPos, setSaveBtnPos] = useState({ x: 0, y: 0 })
   const getExistingPositions = useCallback(
     () => skyRef.current?.getConstellationPositions() ?? [],
     [],
@@ -83,7 +82,6 @@ function App() {
       )
       if (screen) {
         setLabelPos({ x: screen.x, y: screen.y - 130 })
-        setSaveBtnPos({ x: screen.x, y: screen.y + 150 })
       }
     }
 
@@ -132,13 +130,8 @@ function App() {
       />
 
       {flow.showSaveCard && (
-        <button
-          type="button"
-          className="save-card-btn"
-          style={{ left: saveBtnPos.x, top: saveBtnPos.y, transform: 'translateX(-50%)' }}
-          onClick={handleSaveCard}
-        >
-          Save your card
+        <button type="button" className="save-card-btn" onClick={handleSaveCard}>
+          Save your constellation
         </button>
       )}
 
