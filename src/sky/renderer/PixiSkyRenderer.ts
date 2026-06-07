@@ -87,7 +87,11 @@ export class PixiSkyRenderer {
       this.app.screen.height,
       mobile,
     )
-    this.landingLayer = await createLandingDecorations(this.worldLayer)
+    this.landingLayer = await createLandingDecorations(
+      this.worldLayer,
+      this.app.screen.width,
+      this.app.screen.height,
+    )
     this.worldLayer.addChild(this.constellationLayer)
 
     this.panZoom = new PanZoomHandler(canvas, this.camera, () => this.onUserInteraction())

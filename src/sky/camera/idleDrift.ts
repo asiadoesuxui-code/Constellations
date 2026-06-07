@@ -2,7 +2,7 @@ import type { CameraController } from './CameraController'
 
 export class IdleDrift {
   private idleMs = 0
-  private active = false
+  private active = true
   private readonly threshold = 10000
   private phase = 0
 
