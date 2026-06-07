@@ -58,6 +58,7 @@ export class AmbientStarsLayer {
   private mode: SkyViewMode = 'landing'
   private alphaMultiplier = 1
   private sizeMultiplier = 1
+  private revealDim = 1
 
   constructor(
     count: number,
@@ -152,6 +153,10 @@ export class AmbientStarsLayer {
     this.sizeMultiplier = 0.34
   }
 
+  setRevealDim(factor: number): void {
+    this.revealDim = factor
+  }
+
   update(deltaMs: number): void {
     this.time += deltaMs * 0.001
     for (const star of this.stars) {
@@ -159,7 +164,8 @@ export class AmbientStarsLayer {
         star.baseAlpha * (0.7 + 0.3 * Math.sin(this.time * star.speed + star.phase))
       const flarePenalty = this.mode === 'exploring' && star.kind === 'flare' ? 0.15 : 1
       const softPenalty = this.mode === 'exploring' && star.kind === 'soft' ? 0.55 : 1
-      star.graphics.alpha = twinkle * this.alphaMultiplier * flarePenalty * softPenalty
+      star.graphics.alpha =
+        twinkle * this.alphaMultiplier * flarePenalty * softPenalty * this.revealDim
       star.graphics.scale.set(this.sizeMultiplier)
     }
   }
@@ -199,6 +205,12 @@ class TiledAmbientStarsLayer {
   setViewMode(mode: SkyViewMode): void {
     for (const cell of this.cells) {
       cell.setViewMode(mode)
+    }
+  }
+
+  setRevealDim(factor: number): void {
+    for (const cell of this.cells) {
+      cell.setRevealDim(factor)
     }
   }
 

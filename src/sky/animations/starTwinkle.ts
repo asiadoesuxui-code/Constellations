@@ -89,12 +89,25 @@ export function createStarTwinkleState(
   }
 }
 
-function applyTwinkleToStar(star: TwinkleStar, sample: TwinkleSample, reveal = 1): void {
-  const alphaFactor = sample.alpha * reveal
-  star.sprite.alpha = star.baseSpriteAlpha * alphaFactor
-  star.glow.alpha = star.baseGlowAlpha * alphaFactor
+export interface StarRevealModifiers {
+  reveal?: number
+  ignitionScale?: number
+}
 
-  const sizeFactor = (star.bright ? sample.scale : 1) * reveal
+function applyTwinkleToStar(
+  star: TwinkleStar,
+  sample: TwinkleSample,
+  modifiers: StarRevealModifiers = {},
+): void {
+  const reveal = modifiers.reveal ?? 1
+  const ignitionScale = modifiers.ignitionScale ?? 1
+  const alphaFactor = sample.alpha * reveal
+  const glowBoost = ignitionScale > 1 ? 1 + (ignitionScale - 1) * 0.45 : 1
+
+  star.sprite.alpha = star.baseSpriteAlpha * alphaFactor
+  star.glow.alpha = star.baseGlowAlpha * alphaFactor * glowBoost
+
+  const sizeFactor = (star.bright ? sample.scale : 1) * reveal * ignitionScale
   star.sprite.width = star.baseSpriteWidth * sizeFactor
   star.sprite.height = star.baseSpriteHeight * sizeFactor
   star.glow.width = star.baseGlowWidth * sizeFactor
@@ -105,16 +118,19 @@ export function applyStarTwinkle(
   state: StarTwinkleState,
   nowMs: number,
   deltaMs: number,
-  revealFactors?: number[],
+  revealModifiers?: StarRevealModifiers[],
 ): void {
   if (state.settleFromReveal && state.revealWeight > 0) {
     state.revealWeight = Math.max(0, state.revealWeight - deltaMs / SETTLE_DURATION_MS)
   }
 
   const elapsed = nowMs - state.startMs
+  const revealWeight = revealModifiers
+    ? Math.min(state.revealWeight, 0.18)
+    : state.revealWeight
   state.stars.forEach((star, i) => {
-    const reveal = revealFactors?.[i] ?? 1
-    const sample = sampleTwinkle(elapsed, star.phase, star.bright, state.revealWeight)
-    applyTwinkleToStar(star, sample, reveal)
+    const modifiers = revealModifiers?.[i]
+    const sample = sampleTwinkle(elapsed, star.phase, star.bright, revealWeight)
+    applyTwinkleToStar(star, sample, modifiers)
   })
 }

@@ -1,6 +1,10 @@
 import { Container, Graphics } from 'pixi.js'
 import type { ConstellationGeometry, ConstellationRecord } from '../../types/contracts'
 import {
+  updateConstellationReveal,
+  type ConstellationRevealState,
+} from '../animations/constellationReveal'
+import {
   applyStarTwinkle,
   buildTwinkleStar,
   createStarPhase,
@@ -14,6 +18,8 @@ import { addStarGraphics, drawConstellationLines } from './drawStars'
 export interface CreateConstellationOptions {
   twinkleStartMs?: number
   twinkleFromReveal?: boolean
+  animateReveal?: boolean
+  onRevealComplete?: () => void
   isOwn?: boolean
 }
 
@@ -33,6 +39,7 @@ export interface ConstellationVisual {
   alpha: number
   renderable: boolean
   twinkle?: StarTwinkleState
+  reveal?: ConstellationRevealState
 }
 
 export async function createConstellationSprite(
@@ -50,16 +57,14 @@ export async function createConstellationSprite(
     container.scale.set(1.1)
   }
 
+  const lineAlpha = isOwn ? 0.95 : 0.62
+  const lineWidth = isOwn ? 2.8 : 2.1
+  const animateReveal = options.animateReveal ?? false
   const lines = new Graphics()
-  drawConstellationLines(
-    lines,
-    geometry.stars,
-    geometry.edges,
-    geometry.colour,
-    isOwn ? 0.95 : 0.62,
-    isOwn ? 2.8 : 2.1,
-  )
   container.addChild(lines)
+  if (!animateReveal) {
+    drawConstellationLines(lines, geometry.stars, geometry.edges, geometry.colour, lineAlpha, lineWidth)
+  }
 
   const starOpacityBoost = isOwn ? 1.25 : 1.02
   const starScaleBoost = isOwn ? 1.18 : 1.04
@@ -81,11 +86,20 @@ export async function createConstellationSprite(
     )
   }
 
-  const twinkle = createStarTwinkleState(
-    twinkleStars,
-    options.twinkleStartMs ?? performance.now(),
-    options.twinkleFromReveal ?? false,
-  )
+  const startMs = options.twinkleStartMs ?? performance.now()
+  const twinkle = createStarTwinkleState(twinkleStars, startMs, options.twinkleFromReveal ?? false)
+
+  const reveal: ConstellationRevealState | undefined = animateReveal
+    ? {
+        geometry,
+        lines,
+        lineAlpha,
+        lineWidth,
+        startMs,
+        complete: false,
+        onComplete: options.onRevealComplete,
+      }
+    : undefined
 
   return {
     container,
@@ -94,6 +108,7 @@ export async function createConstellationSprite(
     alpha: 1,
     renderable: true,
     twinkle,
+    reveal,
   }
 }
 
@@ -103,6 +118,10 @@ export function updateConstellationTwinkle(
   deltaMs: number,
 ): void {
   if (!visual.twinkle) return
+  if (visual.reveal && !visual.reveal.complete) {
+    updateConstellationReveal(visual.reveal, visual.twinkle, nowMs)
+    return
+  }
   applyStarTwinkle(visual.twinkle, nowMs, deltaMs)
 }
 

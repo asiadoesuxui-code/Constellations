@@ -22,9 +22,13 @@ import {
   createLandingDecorations,
   updateLandingDecorations,
 } from '../renderer/landingDecorations'
+import {
+  getRevealEnvironmentDim,
+  getRevealEnvironmentRestoreMultiplier,
+  REVEAL_ENV_RESTORE_MS,
+} from '../animations/constellationReveal'
 import { createNebulaLayer } from '../renderer/NebulaLayer'
 import { createTiledBackground } from '../renderer/SkyBackground'
-import { runPlacementAnimation } from '../animations/placementAnimation'
 
 export interface SkyRendererOptions {
   onBoundsChange?: (bounds: BoundingBox) => void
@@ -45,7 +49,10 @@ export class PixiSkyRenderer {
   private idleDrift = new IdleDrift()
   private ambientLayer?: AmbientStarsLayerHandle
   private backgroundLayer?: Container
+  private nebulaLayer?: Container
   private landingLayer?: Container
+  private backgroundBaseAlpha = 1
+  private revealEnvRestore: { startMs: number } | null = null
   private viewMode: SkyViewMode = 'landing'
   private options: SkyRendererOptions
   private lastFetchBounds: string | null = null
@@ -89,7 +96,7 @@ export class PixiSkyRenderer {
     this.appInitialized = true
     this.app.stage.addChild(this.worldLayer)
     this.backgroundLayer = createTiledBackground(this.worldLayer)
-    createNebulaLayer(this.worldLayer)
+    this.nebulaLayer = createNebulaLayer(this.worldLayer)
     this.ambientLayer = createAmbientStarsLayer(
       this.worldLayer,
       this.app.screen.width,
@@ -129,6 +136,7 @@ export class PixiSkyRenderer {
       for (const visual of this.visuals.values()) {
         updateConstellationTwinkle(visual, nowMs, deltaMs)
       }
+      this.updateRevealEnvironment(nowMs)
       const bounds = this.camera.getBounds(this.app.screen.width, this.app.screen.height)
       this.culler.update(this.visuals, bounds, deltaMs, this.ownConstellationId)
       this.scheduleFetch(bounds)
@@ -199,8 +207,9 @@ export class PixiSkyRenderer {
       this.landingLayer.visible = mode === 'landing'
     }
 
+    this.backgroundBaseAlpha = mode === 'landing' ? 1 : 0.62
     if (this.backgroundLayer) {
-      this.backgroundLayer.alpha = mode === 'landing' ? 1 : 0.62
+      this.backgroundLayer.alpha = this.backgroundBaseAlpha
     }
 
     this.ambientLayer?.setViewMode(mode)
@@ -244,7 +253,12 @@ export class PixiSkyRenderer {
 
   async addConstellation(
     record: ConstellationRecord,
-    options: { twinkleStartMs?: number; twinkleFromReveal?: boolean } = {},
+    options: {
+      twinkleStartMs?: number
+      twinkleFromReveal?: boolean
+      animateReveal?: boolean
+      onRevealComplete?: () => void
+    } = {},
   ): Promise<void> {
     if (this.spatialGrid.has(record.id) || this.addingIds.has(record.id)) return
     if (record.id !== this.ownConstellationId) {
@@ -260,6 +274,8 @@ export class PixiSkyRenderer {
       const visual = await createConstellationSprite(record, {
         twinkleStartMs: options.twinkleStartMs,
         twinkleFromReveal: options.twinkleFromReveal,
+        animateReveal: options.animateReveal,
+        onRevealComplete: options.onRevealComplete,
         isOwn: record.id === this.ownConstellationId,
       })
       if (this.visuals.has(record.id)) {
@@ -285,15 +301,60 @@ export class PixiSkyRenderer {
 
   async revealConstellation(record: ConstellationRecord): Promise<void> {
     this.idleDrift.pause()
-    const [placement] = await Promise.all([
-      runPlacementAnimation(this.constellationLayer, record),
-      this.camera.panTo(record.x, record.y, 1400, 1),
-    ])
-    await this.addConstellation(record, {
-      twinkleStartMs: placement.startMs,
-      twinkleFromReveal: true,
+    this.revealEnvRestore = null
+    const startMs = performance.now()
+    let resolveReveal!: () => void
+    const revealComplete = new Promise<void>((resolve) => {
+      resolveReveal = resolve
     })
+
+    const panPromise = this.camera.panTo(record.x, record.y, 2800, 1)
+    await this.addConstellation(record, {
+      twinkleStartMs: startMs,
+      twinkleFromReveal: true,
+      animateReveal: true,
+      onRevealComplete: () => {
+        this.revealEnvRestore = { startMs: performance.now() }
+        resolveReveal()
+      },
+    })
+    await Promise.all([revealComplete, panPromise])
     this.idleDrift.resume()
+  }
+
+  private applyRevealEnvironmentDim(multiplier: number): void {
+    this.ambientLayer?.setRevealDim(multiplier)
+    if (this.nebulaLayer) {
+      this.nebulaLayer.alpha = multiplier
+    }
+    if (this.backgroundLayer) {
+      const bgMult = 0.9 + multiplier * 0.1
+      this.backgroundLayer.alpha = this.backgroundBaseAlpha * bgMult
+    }
+  }
+
+  private updateRevealEnvironment(nowMs: number): void {
+    for (const visual of this.visuals.values()) {
+      if (visual.reveal && !visual.reveal.complete) {
+        const elapsed = nowMs - visual.reveal.startMs
+        this.applyRevealEnvironmentDim(getRevealEnvironmentDim(elapsed))
+        return
+      }
+    }
+
+    if (this.revealEnvRestore) {
+      const elapsed = nowMs - this.revealEnvRestore.startMs
+      this.applyRevealEnvironmentDim(
+        getRevealEnvironmentRestoreMultiplier(this.revealEnvRestore.startMs, nowMs),
+      )
+      if (elapsed >= REVEAL_ENV_RESTORE_MS) {
+        this.revealEnvRestore = null
+        this.applyRevealEnvironmentDim(1)
+      }
+      return
+    }
+
+    this.applyRevealEnvironmentDim(1)
   }
 
   async focusConstellation(record: ConstellationRecord): Promise<void> {

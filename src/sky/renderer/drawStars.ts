@@ -39,12 +39,104 @@ export function drawConstellationLines(
   alpha = 0.45,
   lineWidth = 2,
 ): void {
-  for (const [a, b] of edges) {
+  drawConstellationLinesProgress(
+    g,
+    stars,
+    edges,
+    edges.map(() => 1),
+    color,
+    alpha,
+    lineWidth,
+  )
+}
+
+function drawTaperedDashedLine(
+  g: Graphics,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  progress: number,
+  minWidth: number,
+  maxWidth: number,
+  color: string | number,
+  alpha: number,
+  dash = 5,
+  gap = 6,
+): void {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const len = Math.hypot(dx, dy)
+  if (len === 0 || progress <= 0) return
+
+  const drawLen = len * progress
+  const ux = dx / len
+  const uy = dy / len
+  let dist = 0
+  let drawing = true
+
+  while (dist < drawLen) {
+    const seg = Math.min(drawing ? dash : gap, drawLen - dist)
+    if (drawing) {
+      const midDist = dist + seg / 2
+      const midT = midDist / len
+      const width = minWidth + (maxWidth - minWidth) * midT
+      const segAlpha = alpha * (0.5 + 0.5 * midT)
+      g.moveTo(x1 + ux * dist, y1 + uy * dist)
+      g.lineTo(x1 + ux * (dist + seg), y1 + uy * (dist + seg))
+      g.stroke({ color, width, alpha: segAlpha })
+    }
+    dist += seg
+    drawing = !drawing
+  }
+}
+
+export function drawConstellationLinesProgress(
+  g: Graphics,
+  stars: { x: number; y: number }[],
+  edges: [number, number][],
+  edgeProgress: number[],
+  color: string | number,
+  alpha = 0.45,
+  lineWidth = 2,
+  taperedReveal = false,
+): void {
+  g.clear()
+
+  edges.forEach(([a, b], i) => {
+    const t = edgeProgress[i] ?? 0
+    if (t <= 0) return
     const sa = stars[a]
     const sb = stars[b]
-    drawDashedLine(g, sa.x, sa.y, sb.x, sb.y)
+
+    if (taperedReveal && t < 1) {
+      drawTaperedDashedLine(
+        g,
+        sa.x,
+        sa.y,
+        sb.x,
+        sb.y,
+        t,
+        Math.max(0.35, lineWidth * 0.22),
+        lineWidth,
+        color,
+        alpha,
+      )
+      return
+    }
+
+    const endX = sa.x + (sb.x - sa.x) * t
+    const endY = sa.y + (sb.y - sa.y) * t
+    drawDashedLine(g, sa.x, sa.y, endX, endY)
+  })
+
+  const hasDashed = edges.some((_, i) => {
+    const t = edgeProgress[i] ?? 0
+    return t > 0 && (!taperedReveal || t >= 1)
+  })
+  if (hasDashed) {
+    g.stroke({ color, width: lineWidth, alpha })
   }
-  g.stroke({ color, width: lineWidth, alpha })
 }
 
 export function addStarGlow(
