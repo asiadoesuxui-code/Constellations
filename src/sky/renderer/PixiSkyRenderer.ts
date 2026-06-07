@@ -467,10 +467,23 @@ export class PixiSkyRenderer {
       cropH = cropW / aspect
     }
 
+    if (cropW > screenW) {
+      const scale = screenW / cropW
+      cropW = screenW
+      cropH *= scale
+    }
+    if (cropH > screenH) {
+      const scale = screenH / cropH
+      cropH = screenH
+      cropW *= scale
+    }
+
     const centerX = (rawX + rawRight) / 2
     const centerY = (rawY + rawBottom) / 2
-    const cropX = centerX - cropW / 2
-    const cropY = centerY - cropH / 2
+    let cropX = centerX - cropW / 2
+    let cropY = centerY - cropH / 2
+    cropX = Math.max(0, Math.min(cropX, screenW - cropW))
+    cropY = Math.max(0, Math.min(cropY, screenH - cropH))
 
     const source = this.app.canvas as HTMLCanvasElement
     const outW = Math.max(1, Math.round(cropW * resolution))
@@ -482,32 +495,16 @@ export class PixiSkyRenderer {
     const ctx = output.getContext('2d')
     if (!ctx) return null
 
-    ctx.fillStyle = '#0a0a0a'
-    ctx.fillRect(0, 0, outW, outH)
-
-    const srcLeft = Math.max(0, cropX)
-    const srcTop = Math.max(0, cropY)
-    const srcRight = Math.min(screenW, cropX + cropW)
-    const srcBottom = Math.min(screenH, cropY + cropH)
-    const srcW = srcRight - srcLeft
-    const srcH = srcBottom - srcTop
-    if (srcW <= 0 || srcH <= 0) return null
-
-    const destX = Math.round((srcLeft - cropX) * resolution)
-    const destY = Math.round((srcTop - cropY) * resolution)
-    const destW = Math.round(srcW * resolution)
-    const destH = Math.round(srcH * resolution)
-
     ctx.drawImage(
       source,
-      Math.round(srcLeft * resolution),
-      Math.round(srcTop * resolution),
-      destW,
-      destH,
-      destX,
-      destY,
-      destW,
-      destH,
+      Math.round(cropX * resolution),
+      Math.round(cropY * resolution),
+      outW,
+      outH,
+      0,
+      0,
+      outW,
+      outH,
     )
 
     drawCaptureLabels(ctx, this.getConstellationLabels(), {

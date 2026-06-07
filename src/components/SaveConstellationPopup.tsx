@@ -38,10 +38,7 @@ export function SaveConstellationPopup({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="share-card-capture popup-card" id="share-card-download">
-              <div
-                className="share-card-sky"
-                style={{ width: captureWidth, height: captureHeight }}
-              >
+              <div className="share-card-sky">
                 <img
                   src={skyDataUrl}
                   alt="Your constellation in the night sky"
