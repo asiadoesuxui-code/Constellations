@@ -36,14 +36,39 @@ function envelopeRadius(stars: ConstellationGeometry['stars']): number {
   return max + 25
 }
 
+/** World-space Y offset from constellation center to label anchor (negative = above). */
+function computeLabelAnchorY(stars: ConstellationGeometry['stars'], isOwn: boolean): number {
+  const scale = isOwn ? OWN_CONSTELLATION_SCALE : 1
+  let top = 0
+  for (const star of stars) {
+    const halo = (star.bright ? 50 : 34) * star.scale * scale
+    top = Math.min(top, star.y * scale - halo)
+  }
+  return top - (isOwn ? 4 : 8)
+}
+
+const LABEL_FADE_MS = 520
+
 export interface ConstellationVisual {
   container: Container
   record: ConstellationRecord
   hitRadius: number
+  labelAnchorY: number
+  showLabel: boolean
+  labelRevealStartMs: number | null
   alpha: number
   renderable: boolean
   twinkle?: StarTwinkleState
   reveal?: ConstellationRevealState
+}
+
+export function getLabelDisplayOpacity(visual: ConstellationVisual, nowMs: number): number {
+  if (!visual.showLabel) return 0
+  const base = visual.alpha
+  if (visual.labelRevealStartMs == null) return base
+  const t = Math.min((nowMs - visual.labelRevealStartMs) / LABEL_FADE_MS, 1)
+  const eased = 1 - (1 - t) ** 3
+  return base * eased
 }
 
 export async function createConstellationSprite(
@@ -113,6 +138,9 @@ export async function createConstellationSprite(
     container,
     record,
     hitRadius: envelopeRadius(geometry.stars) * (isOwn ? OWN_CONSTELLATION_SCALE : 1),
+    labelAnchorY: computeLabelAnchorY(geometry.stars, isOwn),
+    showLabel: !animateReveal,
+    labelRevealStartMs: null,
     alpha: 1,
     renderable: true,
     twinkle,
@@ -127,7 +155,11 @@ export function updateConstellationTwinkle(
 ): void {
   if (!visual.twinkle) return
   if (visual.reveal && !visual.reveal.complete) {
-    updateConstellationReveal(visual.reveal, visual.twinkle, nowMs)
+    const done = updateConstellationReveal(visual.reveal, visual.twinkle, nowMs)
+    if (done) {
+      visual.showLabel = true
+      visual.labelRevealStartMs = nowMs
+    }
     return
   }
   applyStarTwinkle(visual.twinkle, nowMs, deltaMs)

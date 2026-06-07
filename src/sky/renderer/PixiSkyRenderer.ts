@@ -10,6 +10,7 @@ import { SpatialGrid } from '../culling/spatialGrid'
 import { ViewportCuller } from '../culling/ViewportCuller'
 import {
   createConstellationSprite,
+  getLabelDisplayOpacity,
   updateConstellationTwinkle,
   type ConstellationVisual,
 } from '../renderer/ConstellationSprite'
@@ -27,6 +28,7 @@ import {
   getRevealEnvironmentRestoreMultiplier,
   REVEAL_ENV_RESTORE_MS,
 } from '../animations/constellationReveal'
+import { preloadConstellationAssets } from '../renderer/constellationAssets'
 import { createNebulaLayer } from '../renderer/NebulaLayer'
 import { createTiledBackground } from '../renderer/SkyBackground'
 
@@ -302,14 +304,23 @@ export class PixiSkyRenderer {
   async revealConstellation(record: ConstellationRecord): Promise<void> {
     this.idleDrift.pause()
     this.revealEnvRestore = null
-    const startMs = performance.now()
     let resolveReveal!: () => void
     const revealComplete = new Promise<void>((resolve) => {
       resolveReveal = resolve
     })
 
+    const panDurationMs = 2800
+    const revealOverlapMs = 500
     const revealZoom = record.id === this.ownConstellationId ? 1.65 : 1
-    const panPromise = this.camera.panTo(record.x, record.y, 2800, revealZoom)
+    const panPromise = this.camera.panTo(record.x, record.y, panDurationMs, revealZoom)
+
+    const revealLeadMs = Math.max(0, panDurationMs - revealOverlapMs)
+    await Promise.all([
+      preloadConstellationAssets(),
+      new Promise<void>((resolve) => setTimeout(resolve, revealLeadMs)),
+    ])
+
+    const startMs = performance.now()
     await this.addConstellation(record, {
       twinkleStartMs: startMs,
       twinkleFromReveal: true,
@@ -398,11 +409,15 @@ export class PixiSkyRenderer {
     const screenH = this.app.screen.height
     const labels: ConstellationLabelTarget[] = []
 
+    const nowMs = performance.now()
     for (const visual of this.visuals.values()) {
       if (!visual.renderable || visual.alpha < 0.08) continue
-      if (!visual.record.name) continue
+      if (!visual.record.name || !visual.showLabel) continue
 
-      const labelWorldY = visual.record.y - visual.hitRadius - 12
+      const labelOpacity = getLabelDisplayOpacity(visual, nowMs)
+      if (labelOpacity < 0.02) continue
+
+      const labelWorldY = visual.record.y + visual.labelAnchorY
       const screen = this.camera.worldToScreen(
         visual.record.x,
         labelWorldY,
@@ -416,7 +431,7 @@ export class PixiSkyRenderer {
         wish: visual.record.wish,
         screenX: screen.x,
         screenY: screen.y,
-        opacity: visual.alpha,
+        opacity: labelOpacity,
         isOwn: visual.record.id === this.ownConstellationId,
       })
     }
