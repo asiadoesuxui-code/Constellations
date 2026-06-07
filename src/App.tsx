@@ -10,6 +10,7 @@ import { LandingPopup } from './components/LandingPopup'
 import { SkyConstellationLabels } from './components/SkyConstellationLabels'
 import { SaveConstellationPopup } from './components/SaveConstellationPopup'
 import {
+  captureShareCardDownload,
   downloadImage,
   getShareCardOrientation,
   type ShareCardOrientation,
@@ -78,13 +79,13 @@ function App() {
     setSharePreview({ ...capture, orientation })
   }
 
-  const handleDownloadShare = () => {
-    if (sharePreview) downloadImage(sharePreview.dataUrl)
+  const handleDownloadShare = async () => {
+    const dataUrl = await captureShareCardDownload()
+    if (dataUrl) downloadImage(dataUrl)
   }
 
   const handleDismissShare = () => {
     setSharePreview(null)
-    flow.dismissCard()
   }
 
   return (

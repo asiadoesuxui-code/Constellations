@@ -37,7 +37,7 @@ export function SaveConstellationPopup({
             transition={{ duration: 0.55, ease: [0.4, 0, 0.2, 1] }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="share-card-capture popup-card">
+            <div className="share-card-capture popup-card" id="share-card-download">
               <div
                 className="share-card-sky"
                 style={{ width: captureWidth, height: captureHeight }}
@@ -51,7 +51,11 @@ export function SaveConstellationPopup({
               </div>
               <div className="share-card-footer">
                 <p className="popup-prompt share-card-tagline">wish upon a star</p>
-                <button type="button" className="submit-btn" onClick={onDownload}>
+                <button
+                  type="button"
+                  className="submit-btn share-card-download-btn"
+                  onClick={onDownload}
+                >
                   Download image
                 </button>
               </div>
