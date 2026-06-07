@@ -43,7 +43,7 @@ export function drawConstellationLines(
     const sb = stars[b]
     drawDashedLine(g, sa.x, sa.y, sb.x, sb.y)
   }
-  g.stroke({ color, width: 1, alpha })
+  g.stroke({ color, width: 2, alpha })
 }
 
 export function addStarGraphics(

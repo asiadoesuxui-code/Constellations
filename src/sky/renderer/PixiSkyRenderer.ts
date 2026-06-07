@@ -1,6 +1,5 @@
 import { Application, Container } from 'pixi.js'
 import type { BoundingBox, ConstellationRecord } from '../../types/contracts'
-import { runPlacementAnimation } from '../animations/placementAnimation'
 import { recordFromWish } from '../skyApi'
 import { CameraController } from '../camera/CameraController'
 import { IdleDrift } from '../camera/idleDrift'
@@ -198,7 +197,6 @@ export class PixiSkyRenderer {
   async revealConstellation(record: ConstellationRecord): Promise<void> {
     this.onUserInteraction()
     await this.camera.panTo(record.x, record.y, 1400, 1)
-    await runPlacementAnimation(this.constellationLayer, record)
     await this.addConstellation(record)
   }
 

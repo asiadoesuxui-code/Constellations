@@ -18,9 +18,9 @@ export const STAR_DOT_SIZE = 33
 export const STAR_SPARKLE_SIZE = 93
 export const STAR_HALO_PAD = Math.ceil(STAR_SPARKLE_SIZE / 2)
 
-/** World-space display size — matches the old Graphics circle footprint */
-export const DOT_WORLD_SIZE = 2.2 * 2
-export const SPARKLE_WORLD_SIZE = 28
+/** World-space display size */
+export const DOT_WORLD_SIZE = 2.2 * 2 * 4
+export const SPARKLE_WORLD_SIZE = 28 * 2
 
 let dotImage: HTMLImageElement | null = null
 let sparkleImage: HTMLImageElement | null = null
