@@ -16,7 +16,8 @@ export class IdleDrift {
   }
 
   resume() {
-    this.active = true
+    this.idleMs = 0
+    this.active = false
   }
 
   update(deltaMs: number, camera: CameraController): void {

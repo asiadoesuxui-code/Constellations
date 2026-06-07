@@ -14,8 +14,11 @@ import {
 import { generateConstellation } from '../generation/generateConstellation'
 import {
   getConstellationLineStyle,
+  getLineBlurScale,
+  getLineZoomBoost,
   OWN_CONSTELLATION_SCALE,
   preloadConstellationAssets,
+  type ConstellationLineStyle,
 } from './constellationAssets'
 import { addStarGraphics, drawConstellationLines } from './drawStars'
 
@@ -58,8 +61,28 @@ export interface ConstellationVisual {
   labelRevealStartMs: number | null
   alpha: number
   renderable: boolean
+  lines: Graphics
+  linesGlow: Graphics
+  geometry: ConstellationGeometry
+  lineStyle: ConstellationLineStyle
+  lastLineZoom: number
   twinkle?: StarTwinkleState
   reveal?: ConstellationRevealState
+}
+
+const LINE_ZOOM_EPS = 0.004
+
+function applyConstellationLineBlur(
+  lines: Graphics,
+  linesGlow: Graphics,
+  lineStyle: ConstellationLineStyle,
+  zoom: number,
+): void {
+  const blurScale = getLineBlurScale(zoom)
+  const coreBlur = lines.filters?.[0] as BlurFilter | undefined
+  const glowBlur = linesGlow.filters?.[0] as BlurFilter | undefined
+  if (coreBlur) coreBlur.strength = lineStyle.coreBlur * blurScale
+  if (glowBlur) glowBlur.strength = lineStyle.glowBlur * blurScale
 }
 
 export function getLabelDisplayOpacity(visual: ConstellationVisual, nowMs: number): number {
@@ -143,19 +166,44 @@ export async function createConstellationSprite(
     labelRevealStartMs: null,
     alpha: 1,
     renderable: true,
+    lines,
+    linesGlow,
+    geometry,
+    lineStyle,
+    lastLineZoom: 1,
     twinkle,
     reveal,
   }
+}
+
+export function updateConstellationLineZoom(visual: ConstellationVisual, zoom: number): void {
+  if (Math.abs(visual.lastLineZoom - zoom) < LINE_ZOOM_EPS) return
+  visual.lastLineZoom = zoom
+
+  const boost = getLineZoomBoost(zoom)
+  applyConstellationLineBlur(visual.lines, visual.linesGlow, visual.lineStyle, zoom)
+
+  if (visual.reveal && !visual.reveal.complete) return
+
+  drawConstellationLines(
+    visual.lines,
+    visual.geometry.stars,
+    visual.geometry.edges,
+    visual.lineStyle,
+    visual.linesGlow,
+    boost,
+  )
 }
 
 export function updateConstellationTwinkle(
   visual: ConstellationVisual,
   nowMs: number,
   deltaMs: number,
+  zoom = 1,
 ): void {
   if (!visual.twinkle) return
   if (visual.reveal && !visual.reveal.complete) {
-    const done = updateConstellationReveal(visual.reveal, visual.twinkle, nowMs)
+    const done = updateConstellationReveal(visual.reveal, visual.twinkle, nowMs, zoom)
     if (done) {
       visual.showLabel = true
       visual.labelRevealStartMs = nowMs

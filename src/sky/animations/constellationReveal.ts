@@ -1,6 +1,7 @@
 import { Graphics } from 'pixi.js'
 import type { ConstellationGeometry } from '../../types/contracts'
-import type { ConstellationLineStyle } from '../renderer/constellationAssets'
+import { getLineBlurScale, getLineZoomBoost, type ConstellationLineStyle } from '../renderer/constellationAssets'
+import { BlurFilter } from 'pixi.js'
 import { drawConstellationLinesProgress } from '../renderer/drawStars'
 import { applyStarTwinkle, type StarRevealModifiers, type StarTwinkleState } from './starTwinkle'
 
@@ -76,10 +77,22 @@ export interface ConstellationRevealState {
   onComplete?: () => void
 }
 
+function applyRevealLineBlur(
+  reveal: ConstellationRevealState,
+  zoom: number,
+): void {
+  const blurScale = getLineBlurScale(zoom)
+  const coreBlur = reveal.lines.filters?.[0] as BlurFilter | undefined
+  const glowBlur = reveal.linesGlow.filters?.[0] as BlurFilter | undefined
+  if (coreBlur) coreBlur.strength = reveal.lineStyle.coreBlur * blurScale
+  if (glowBlur) glowBlur.strength = reveal.lineStyle.glowBlur * blurScale
+}
+
 export function updateConstellationReveal(
   reveal: ConstellationRevealState,
   twinkle: StarTwinkleState,
   nowMs: number,
+  zoom = 1,
 ): boolean {
   const elapsed = nowMs - reveal.startMs
   const totalDuration = getRevealTotalDuration(
@@ -95,6 +108,8 @@ export function updateConstellationReveal(
   )
   applyStarTwinkle(twinkle, nowMs, 0, modifiers)
 
+  const boost = getLineZoomBoost(zoom)
+  applyRevealLineBlur(reveal, zoom)
   drawConstellationLinesProgress(
     reveal.lines,
     reveal.geometry.stars,
@@ -103,6 +118,7 @@ export function updateConstellationReveal(
     reveal.lineStyle,
     reveal.linesGlow,
     true,
+    boost,
   )
 
   if (elapsed >= totalDuration) {

@@ -3,7 +3,7 @@ import { CONSTELLATION_MIN_DISTANCE } from '../../api/placement'
 import { getSeedConstellations } from '../../api/seedConstellations'
 import type { BoundingBox, ConstellationLabelTarget, ConstellationRecord } from '../../types/contracts'
 import { recordFromWish } from '../skyApi'
-import { CameraController } from '../camera/CameraController'
+import { cameraPanDurationMs, CameraController } from '../camera/CameraController'
 import { IdleDrift } from '../camera/idleDrift'
 import { PanZoomHandler } from '../camera/PanZoomHandler'
 import { SpatialGrid } from '../culling/spatialGrid'
@@ -11,6 +11,7 @@ import { ViewportCuller } from '../culling/ViewportCuller'
 import {
   createConstellationSprite,
   getLabelDisplayOpacity,
+  updateConstellationLineZoom,
   updateConstellationTwinkle,
   type ConstellationVisual,
 } from '../renderer/ConstellationSprite'
@@ -135,8 +136,10 @@ export class PixiSkyRenderer {
         updateLandingDecorations(this.landingLayer, deltaMs)
       }
       const nowMs = performance.now()
+      const zoom = this.camera.zoom
       for (const visual of this.visuals.values()) {
-        updateConstellationTwinkle(visual, nowMs, deltaMs)
+        updateConstellationTwinkle(visual, nowMs, deltaMs, zoom)
+        updateConstellationLineZoom(visual, zoom)
       }
       this.updateRevealEnvironment(nowMs)
       const bounds = this.camera.getBounds(this.app.screen.width, this.app.screen.height)
@@ -293,7 +296,9 @@ export class PixiSkyRenderer {
       }
       this.visuals.set(record.id, visual)
       this.constellationLayer.addChild(visual.container)
-      updateConstellationTwinkle(visual, performance.now(), 0)
+      const zoom = this.camera.zoom
+      updateConstellationTwinkle(visual, performance.now(), 0, zoom)
+      updateConstellationLineZoom(visual, zoom)
     } catch {
       this.spatialGrid.remove(record.id)
     } finally {
@@ -372,12 +377,21 @@ export class PixiSkyRenderer {
   async focusConstellation(record: ConstellationRecord): Promise<void> {
     if (this.viewMode !== 'exploring' || this.focusing) return
 
-    const focusZoom = this.camera.zoom < 0.92 ? 1 : Math.max(this.camera.zoom, 1)
+    const baseFocusZoom = this.camera.zoom < 0.92 ? 1 : Math.max(this.camera.zoom, 1)
+    const focusZoom = Math.min(this.camera.maxZoom, baseFocusZoom * 2)
+    const focusDurationMs = cameraPanDurationMs(
+      this.camera.x,
+      this.camera.y,
+      this.camera.zoom,
+      record.x,
+      record.y,
+      focusZoom,
+    )
     this.focusing = true
     this.idleDrift.pause()
     this.onUserInteraction()
     try {
-      await this.camera.panTo(record.x, record.y, 1000, focusZoom)
+      await this.camera.panTo(record.x, record.y, focusDurationMs, focusZoom)
     } finally {
       this.focusing = false
       this.idleDrift.resume()

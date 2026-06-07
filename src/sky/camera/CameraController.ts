@@ -4,6 +4,25 @@ export interface CameraState {
   zoom: number
 }
 
+function easeInOutSine(t: number): number {
+  return -(Math.cos(Math.PI * t) - 1) / 2
+}
+
+/** Duration scales with how far the camera pans and zooms. */
+export function cameraPanDurationMs(
+  startX: number,
+  startY: number,
+  startZoom: number,
+  targetX: number,
+  targetY: number,
+  targetZoom: number,
+  baseMs = 1400,
+): number {
+  const panDist = Math.hypot(targetX - startX, targetY - startY)
+  const zoomDelta = Math.abs(Math.log2(targetZoom / Math.max(startZoom, 0.001)))
+  return Math.min(2600, Math.max(baseMs, baseMs + panDist * 0.12 + zoomDelta * 420))
+}
+
 export class CameraController {
   x = 0
   y = 0
@@ -78,7 +97,7 @@ export class CameraController {
     if (!this.tween) return false
     const elapsed = performance.now() - this.tween.startTime
     const t = Math.min(elapsed / this.tween.duration, 1)
-    const eased = 1 - Math.pow(1 - t, 3)
+    const eased = easeInOutSine(t)
     this.x = this.tween.startX + (this.tween.targetX - this.tween.startX) * eased
     this.y = this.tween.startY + (this.tween.targetY - this.tween.startY) * eased
     this.zoom = this.tween.startZoom + (this.tween.targetZoom - this.tween.startZoom) * eased

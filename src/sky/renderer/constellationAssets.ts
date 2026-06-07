@@ -98,6 +98,35 @@ function createSoftGlowTexture(): Texture {
 const STAR_GLOW_RGB = { r: 209, g: 188, b: 160 }
 const STAR_GLOW_TINT = 0xf5e6cc
 
+export interface LineZoomBoost {
+  alpha: number
+  width: number
+}
+
+const LINE_ZOOM_MIN = 0.3
+const LINE_ZOOM_FULL = 1
+
+/** Boosts line visibility when zoomed out; identity at zoom >= 1. */
+export function getLineZoomBoost(zoom: number): LineZoomBoost {
+  if (zoom >= LINE_ZOOM_FULL) {
+    return { alpha: 1, width: 1 }
+  }
+  const z = Math.max(LINE_ZOOM_MIN, zoom)
+  const t = (z - LINE_ZOOM_MIN) / (LINE_ZOOM_FULL - LINE_ZOOM_MIN)
+  return {
+    alpha: 3 + (1 - 3) * t,
+    width: 2.2 + (1 - 2.2) * t,
+  }
+}
+
+/** Reduces line blur when zoomed out so dashed strokes stay readable. */
+export function getLineBlurScale(zoom: number): number {
+  if (zoom >= LINE_ZOOM_FULL) return 1
+  const z = Math.max(LINE_ZOOM_MIN, zoom)
+  const t = (z - LINE_ZOOM_MIN) / (LINE_ZOOM_FULL - LINE_ZOOM_MIN)
+  return 0.4 + 0.6 * t
+}
+
 export function getConstellationLineStyle(isOwn = false): ConstellationLineStyle {
   return {
     color: STAR_GLOW_TINT,

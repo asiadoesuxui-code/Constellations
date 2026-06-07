@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite } from 'pixi.js'
-import type { ConstellationLineStyle } from './constellationAssets'
+import type { ConstellationLineStyle, LineZoomBoost } from './constellationAssets'
 import { createStarGlowSprite, createStarSprite } from './constellationAssets'
 
 const ROUND_STROKE = { cap: 'round' as const, join: 'round' as const }
@@ -67,6 +67,7 @@ function drawTaperedSoftDashedLine(
   y2: number,
   progress: number,
   style: ConstellationLineStyle,
+  boost: LineZoomBoost = { alpha: 1, width: 1 },
 ): void {
   const dx = x2 - x1
   const dy = y2 - y1
@@ -84,8 +85,8 @@ function drawTaperedSoftDashedLine(
     if (drawing) {
       const midDist = dist + seg / 2
       const midT = midDist / len
-      const widthScale = 0.35 + 0.65 * midT
-      const alphaScale = 0.55 + 0.45 * midT
+      const widthScale = (0.35 + 0.65 * midT) * boost.width
+      const alphaScale = (0.55 + 0.45 * midT) * boost.alpha
       const sx = x1 + ux * dist
       const sy = y1 + uy * dist
       const ex = x1 + ux * (dist + seg)
@@ -121,6 +122,7 @@ export function drawConstellationLines(
   edges: [number, number][],
   style: ConstellationLineStyle,
   glowG?: Graphics | null,
+  boost?: LineZoomBoost,
 ): void {
   drawConstellationLinesProgress(
     coreG,
@@ -129,6 +131,8 @@ export function drawConstellationLines(
     edges.map(() => 1),
     style,
     glowG,
+    false,
+    boost,
   )
 }
 
@@ -140,6 +144,7 @@ export function drawConstellationLinesProgress(
   style: ConstellationLineStyle,
   glowG?: Graphics | null,
   taperedReveal = false,
+  boost: LineZoomBoost = { alpha: 1, width: 1 },
 ): void {
   coreG.clear()
   glowG?.clear()
@@ -151,7 +156,7 @@ export function drawConstellationLinesProgress(
     const sb = stars[b]
 
     if (taperedReveal && t < 1) {
-      drawTaperedSoftDashedLine(glowG, coreG, sa.x, sa.y, sb.x, sb.y, t, style)
+      drawTaperedSoftDashedLine(glowG, coreG, sa.x, sa.y, sb.x, sb.y, t, style, boost)
       return
     }
 
@@ -168,7 +173,7 @@ export function drawConstellationLinesProgress(
     return t > 0 && (!taperedReveal || t >= 1)
   })
   if (hasDashed) {
-    strokeSoftLineLayers(glowG, coreG, style)
+    strokeSoftLineLayers(glowG, coreG, style, boost.width, boost.alpha)
   }
 }
 
