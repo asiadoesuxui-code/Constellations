@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import {
   fetchConstellationsInBounds,
   subscribeToInserts,
@@ -7,7 +7,6 @@ import { isSupabaseConfigured } from './lib/supabase/client'
 import { SkyCanvas } from './sky/SkyCanvas'
 import type { SkyCanvasRef } from './types/contracts'
 import { LandingPopup } from './components/LandingPopup'
-import { HoverTooltip } from './components/HoverTooltip'
 import { SkyConstellationLabels } from './components/SkyConstellationLabels'
 import { ShareCard } from './components/ShareCard'
 import { captureShareCard, downloadImage } from './components/shareCardCapture'
@@ -16,7 +15,6 @@ import './styles/popup.css'
 
 function App() {
   const skyRef = useRef<SkyCanvasRef>(null)
-  const [hover, setHover] = useState<{ wish: string; x: number; y: number } | null>(null)
   const getExistingPositions = useCallback(
     () => skyRef.current?.getConstellationPositions() ?? [],
     [],
@@ -29,18 +27,6 @@ function App() {
       return fetchConstellationsInBounds(bounds)
     },
     [],
-  )
-
-  const handleHover = useCallback(
-    (wish: string | null, screenX: number, screenY: number) => {
-      if (flow.phase === 'card' || flow.phase === 'revealing') return
-      if (wish) {
-        setHover({ wish, x: screenX, y: screenY })
-      } else {
-        setHover(null)
-      }
-    },
-    [flow.phase],
   )
 
   const ownConstellationIdRef = useRef<string | null>(null)
@@ -84,7 +70,6 @@ function App() {
         fetchEnabled={flow.phase === 'exploring'}
         ownConstellationId={flow.newConstellation?.id ?? null}
         fetchConstellations={fetchConstellations}
-        onHover={handleHover}
       />
 
       <LandingPopup
@@ -105,8 +90,6 @@ function App() {
         error={flow.error}
       />
 
-      <HoverTooltip wish={hover?.wish ?? null} x={hover?.x ?? 0} y={hover?.y ?? 0} />
-
       <SkyConstellationLabels
         skyRef={skyRef}
         visible={!flow.showPopup}
@@ -115,23 +98,6 @@ function App() {
       {flow.showSaveCard && (
         <button type="button" className="save-card-btn" onClick={handleSaveCard}>
           Save your constellation
-        </button>
-      )}
-
-      {flow.showSaveCard && (
-        <button
-          type="button"
-          className="dismiss-link"
-          style={{
-            position: 'fixed',
-            bottom: '2rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 50,
-          }}
-          onClick={flow.dismissCard}
-        >
-          Skip
         </button>
       )}
 

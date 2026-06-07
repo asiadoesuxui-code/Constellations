@@ -294,25 +294,48 @@
 
 .save-card-btn {
   position: fixed;
-  top: 40px;
-  right: 40px;
+  bottom: 40px;
+  left: 50%;
   z-index: 50;
-  padding: 0.875rem 1.625rem;
-  font-size: 0.9375rem;
+  padding: 0.8125rem 2.875rem;
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
   color: var(--text-primary);
   background: rgba(18, 18, 18, 0.88);
   border: 1.5px solid rgba(229, 195, 142, 0.6);
   border-radius: 999px;
   backdrop-filter: blur(8px);
+  transform: translateX(-50%);
   transition:
     opacity var(--transition-soft),
-    border-color var(--transition-soft);
+    transform 0.3s ease,
+    color 0.3s ease,
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .save-card-btn:hover {
-  border-color: rgba(229, 195, 142, 0.85);
+  color: #2a2218;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(
+      90deg,
+      #b89b68 0%,
+      #d4bc8e 16%,
+      #ebe0cc 36%,
+      #f8f2e4 50%,
+      #ebe0cc 64%,
+      #d4bc8e 84%,
+      #b89b68 100%
+    ) padding-box,
+    linear-gradient(180deg, #e0cfae 0%, #615641 50%, #e0cfae 100%) border-box;
+  box-shadow: 0 0 10px #cdb89e;
+  backdrop-filter: none;
+  transform: translateX(-50%) translateY(-1px);
 }
 
 .constellation-label {
@@ -376,24 +399,6 @@
 
 .sky-constellation-label--own .sky-constellation-label-wish {
   color: #f0e4cc;
-}
-
-.hover-tooltip {
-  position: fixed;
-  z-index: 45;
-  pointer-events: none;
-  max-width: 280px;
-  padding: 0.75rem 1rem;
-  font-family: var(--font-serif);
-  font-size: 0.9375rem;
-  font-style: italic;
-  color: var(--text-primary);
-  background: rgba(18, 18, 18, 0.92);
-  border: 1px solid var(--surface-border);
-  border-radius: 10px;
-  backdrop-filter: blur(8px);
-  line-height: 1.4;
-  transform: translate(12px, 12px);
 }
 
 @media (max-width: 768px) {
