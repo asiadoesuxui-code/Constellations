@@ -21,6 +21,8 @@
   background:
     radial-gradient(ellipse 90% 80% at 50% 35%, #1c1a18 0%, #121212 55%, #0e0e0e 100%) padding-box,
     linear-gradient(180deg, #e0cfae 0%, #615641 50%, #e0cfae 100%) border-box;
+  background-clip: padding-box, border-box;
+  -webkit-background-clip: padding-box, border-box;
   box-shadow:
     0 0 12px rgba(224, 207, 174, 0.22),
     0 0 28px rgba(224, 207, 174, 0.12),
@@ -53,19 +55,24 @@
   position: absolute;
   top: 0;
   left: 50%;
+  z-index: 2;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
 }
 
-.popup-star-img {
+.popup-star-svg {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(205, 184, 158, 0.4));
+  overflow: visible;
+  filter:
+    drop-shadow(0 0 4px rgba(249, 232, 200, 0.95))
+    drop-shadow(0 0 10px rgba(224, 207, 174, 0.75))
+    drop-shadow(0 0 18px rgba(205, 184, 158, 0.45));
 }
 
 .popup-prompt {

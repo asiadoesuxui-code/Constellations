@@ -1,6 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { ModerationError } from './ModerationError'
-import popupStar from '../assets/popup-star.png'
 import '../styles/popup.css'
 
 interface LandingPopupProps {
@@ -13,10 +12,38 @@ interface LandingPopupProps {
   error: string | null
 }
 
+function buildEightPointStarPath(
+  points: number,
+  outerR: number,
+  innerR: number,
+  cx: number,
+  cy: number,
+): string {
+  const coords: string[] = []
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR
+    const angle = (i * Math.PI) / points - Math.PI / 2
+    coords.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`)
+  }
+  return `M${coords.join('L')}Z`
+}
+
 function PopupStar() {
   return (
     <div className="popup-star" aria-hidden="true">
-      <img src={popupStar} alt="" className="popup-star-img" />
+      <svg className="popup-star-svg" viewBox="0 0 48 48" aria-hidden="true">
+        <defs>
+          <radialGradient id="popup-star-fill" cx="50%" cy="45%" r="55%">
+            <stop offset="0%" stopColor="#faf0d8" />
+            <stop offset="55%" stopColor="#e8d4a8" />
+            <stop offset="100%" stopColor="#b8945a" />
+          </radialGradient>
+        </defs>
+        <path
+          d={buildEightPointStarPath(8, 21, 8.5, 24, 24)}
+          fill="url(#popup-star-fill)"
+        />
+      </svg>
     </div>
   )
 }
