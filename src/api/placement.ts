@@ -27,6 +27,7 @@ export function findEmptyPosition(
   existingPositions: Position[],
   minDistance = DEFAULT_MIN_DISTANCE,
   seed = 0,
+  origin: Position = { x: 0, y: 0 },
 ): Position {
   let radius = 100 + (seed % 200)
 
@@ -35,8 +36,8 @@ export function findEmptyPosition(
       const angle = ((seed + attempt * 137.5 + ring * 47.3) % 360) * (Math.PI / 180)
       const r = radius + ring * 120 + (attempt % 10) * 15
       const candidate = {
-        x: Math.cos(angle) * r,
-        y: Math.sin(angle) * r,
+        x: origin.x + Math.cos(angle) * r,
+        y: origin.y + Math.sin(angle) * r,
       }
       if (isValidPosition(candidate, existingPositions, minDistance)) {
         return candidate
@@ -48,8 +49,8 @@ export function findEmptyPosition(
   const fallbackAngle = (seed % 360) * (Math.PI / 180)
   const fallbackR = radius + existingPositions.length * minDistance
   return {
-    x: Math.cos(fallbackAngle) * fallbackR,
-    y: Math.sin(fallbackAngle) * fallbackR,
+    x: origin.x + Math.cos(fallbackAngle) * fallbackR,
+    y: origin.y + Math.sin(fallbackAngle) * fallbackR,
   }
 }
 

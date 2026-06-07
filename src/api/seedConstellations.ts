@@ -1,38 +1,12 @@
 import type { ConstellationRecord } from '../types/contracts'
 import { deriveColourPalette, hashWish } from '../sky/generation/hashSeed'
+import { SeededRandom } from '../sky/generation/seededRandom'
 import { CONSTELLATION_MIN_DISTANCE, findEmptyPosition, type Position } from './placement'
 
 interface SeedEntry {
   name: string
   wish: string
 }
-
-/** Sector centers spread across the infinite sky — some near origin, others far out. */
-const PLACEMENT_SECTORS: Position[] = [
-  { x: 0, y: 0 },
-  { x: 0, y: 0 },
-  { x: 0, y: 0 },
-  { x: 1800, y: 600 },
-  { x: -1500, y: 1200 },
-  { x: 1200, y: -1600 },
-  { x: -2000, y: -900 },
-  { x: 3200, y: -2200 },
-  { x: -2800, y: 3400 },
-  { x: 4500, y: 1800 },
-  { x: -4200, y: -3100 },
-  { x: 5800, y: -4800 },
-  { x: -6500, y: 5200 },
-  { x: 8200, y: 2400 },
-  { x: -7800, y: -6200 },
-  { x: 10500, y: -3500 },
-  { x: -9800, y: 8800 },
-  { x: 13200, y: 6100 },
-  { x: -12500, y: -10200 },
-  { x: 16800, y: -11800 },
-  { x: -15200, y: 13500 },
-  { x: 19500, y: 8200 },
-  { x: -18800, y: -15600 },
-]
 
 const SEED_ENTRIES: SeedEntry[] = [
   { name: 'Maya', wish: 'my family stays healthy and happy' },
@@ -73,6 +47,17 @@ const SEED_ENTRIES: SeedEntry[] = [
   { name: 'Anya', wish: 'for hope in every small town' },
 ]
 
+/** Soft sky patch centered on the camera — visible when zoomed out. */
+const PATCH_RADIUS = 2800
+const CANDIDATE_ATTEMPTS = 160
+
+const QUADRANT_ANGLE_RANGES: [number, number][] = [
+  [-Math.PI / 2, 0],
+  [0, Math.PI / 2],
+  [Math.PI / 2, Math.PI],
+  [Math.PI, Math.PI * 1.5],
+]
+
 function distance(a: Position, b: Position): number {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
@@ -81,35 +66,61 @@ function isValidPosition(candidate: Position, existing: Position[]): boolean {
   return existing.every((p) => distance(candidate, p) >= CONSTELLATION_MIN_DISTANCE)
 }
 
-function placeSeedConstellation(index: number, wish: string, globalPositions: Position[]): Position {
-  const seed = hashWish(wish)
-  const sector = PLACEMENT_SECTORS[index % PLACEMENT_SECTORS.length]
-  const ring = Math.floor(index / PLACEMENT_SECTORS.length)
-  const sectorCenter = {
-    x: sector.x + ring * 200 * Math.cos(index * 1.73),
-    y: sector.y + ring * 200 * Math.sin(index * 1.73),
+function quadrantIndex(position: Position): number {
+  if (position.x >= 0 && position.y < 0) return 0
+  if (position.x >= 0 && position.y >= 0) return 1
+  if (position.x < 0 && position.y >= 0) return 2
+  return 3
+}
+
+function pickBalancedQuadrant(existing: Position[], rng: SeededRandom): number {
+  const counts = [0, 0, 0, 0]
+  for (const position of existing) {
+    counts[quadrantIndex(position)]++
   }
 
-  const localExisting = globalPositions.map((p) => ({
-    x: p.x - sectorCenter.x,
-    y: p.y - sectorCenter.y,
-  }))
+  const minCount = Math.min(...counts)
+  const candidates = counts
+    .map((count, index) => (count === minCount ? index : -1))
+    .filter((index) => index >= 0)
+  return candidates[rng.nextInt(0, candidates.length - 1)]
+}
 
-  const relative = findEmptyPosition(
-    localExisting,
+function randomPatchPoint(rng: SeededRandom, quadrant: number): Position {
+  const [start, end] = QUADRANT_ANGLE_RANGES[quadrant]
+  const angle = start + rng.next() * (end - start)
+  const t = Math.sqrt(rng.next())
+  const wobble = 220 + rng.next() * 360
+  return {
+    x: Math.cos(angle) * PATCH_RADIUS * t + (rng.next() - 0.5) * wobble,
+    y: Math.sin(angle) * PATCH_RADIUS * t + (rng.next() - 0.5) * wobble,
+  }
+}
+
+function pickNaturalPosition(index: number, wish: string, existing: Position[]): Position {
+  const seed = hashWish(wish) + index * 31_337
+  const rng = new SeededRandom(seed)
+  const quadrant = pickBalancedQuadrant(existing, rng)
+  const valid: Position[] = []
+
+  for (let attempt = 0; attempt < CANDIDATE_ATTEMPTS; attempt++) {
+    const candidate = randomPatchPoint(rng, quadrant)
+    if (!isValidPosition(candidate, existing)) continue
+
+    valid.push(candidate)
+    if (rng.next() < 0.42) return candidate
+  }
+
+  if (valid.length > 0) {
+    return valid[rng.nextInt(0, valid.length - 1)]
+  }
+
+  return findEmptyPosition(
+    existing,
     CONSTELLATION_MIN_DISTANCE,
-    seed + index * 31_337,
+    seed + 17_903,
+    randomPatchPoint(rng, quadrant),
   )
-  const candidate = {
-    x: sectorCenter.x + relative.x,
-    y: sectorCenter.y + relative.y,
-  }
-
-  if (isValidPosition(candidate, globalPositions)) {
-    return candidate
-  }
-
-  return findEmptyPosition(globalPositions, CONSTELLATION_MIN_DISTANCE, seed + index * 31_337)
 }
 
 function buildSeedConstellations(): ConstellationRecord[] {
@@ -119,7 +130,8 @@ function buildSeedConstellations(): ConstellationRecord[] {
   for (let i = 0; i < SEED_ENTRIES.length; i++) {
     const entry = SEED_ENTRIES[i]
     const seed = hashWish(entry.wish)
-    const pos = placeSeedConstellation(i, entry.wish, positions)
+    const pos = pickNaturalPosition(i, entry.wish, positions)
+
     positions.push(pos)
     records.push({
       id: `seed-${i.toString().padStart(2, '0')}-${seed.toString(16)}`,
