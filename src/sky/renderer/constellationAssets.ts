@@ -26,6 +26,7 @@ let dotImage: HTMLImageElement | null = null
 let sparkleImage: HTMLImageElement | null = null
 let dotTexture: Texture | null = null
 let sparkleTexture: Texture | null = null
+let glowTexture: Texture | null = null
 let loadPromise: Promise<void> | null = null
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -38,7 +39,9 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 export function preloadConstellationAssets(): Promise<void> {
-  if (dotImage && sparkleImage && dotTexture && sparkleTexture) return Promise.resolve()
+  if (dotImage && sparkleImage && dotTexture && sparkleTexture && glowTexture) {
+    return Promise.resolve()
+  }
   if (loadPromise) return loadPromise
   loadPromise = Promise.all([loadImage(starDotUrl), loadImage(starSparkleUrl)]).then(
     ([dot, sparkle]) => {
@@ -46,24 +49,112 @@ export function preloadConstellationAssets(): Promise<void> {
       sparkleImage = sparkle
       dotTexture = Texture.from(dot)
       sparkleTexture = Texture.from(sparkle)
+      glowTexture = createSoftGlowTexture()
     },
   )
   return loadPromise
 }
 
 export function constellationAssetsReady(): boolean {
-  return dotTexture !== null && sparkleTexture !== null
+  return dotTexture !== null && sparkleTexture !== null && glowTexture !== null
 }
 
-export function createStarSprite(x: number, y: number, bright: boolean): Sprite {
+function createSoftGlowTexture(): Texture {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  const cx = size / 2
+  const grad = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx)
+  grad.addColorStop(0, 'rgba(255, 255, 255, 1)')
+  grad.addColorStop(0.08, 'rgba(255, 255, 255, 0.65)')
+  grad.addColorStop(0.22, 'rgba(255, 255, 255, 0.24)')
+  grad.addColorStop(0.42, 'rgba(255, 255, 255, 0.08)')
+  grad.addColorStop(0.68, 'rgba(255, 255, 255, 0.02)')
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, size, size)
+  return Texture.from(canvas)
+}
+
+/** Warm gold glow matching constellation palette */
+const STAR_GLOW_RGB = { r: 209, g: 188, b: 160 }
+const STAR_GLOW_TINT = 0xf5e6cc
+
+function starGlowAlpha(bright: boolean, glow: number): number {
+  return glow * (bright ? 0.48 : 0.3)
+}
+
+function starGlowDiameter(bright: boolean, scale: number): number {
+  return (bright ? 76 : 50) * scale
+}
+
+export function createStarGlowSprite(
+  x: number,
+  y: number,
+  bright: boolean,
+  glow: number,
+  scale: number,
+): Sprite {
+  const sprite = new Sprite(glowTexture!)
+  sprite.anchor.set(0.5)
+  sprite.x = x
+  sprite.y = y
+  const diameter = starGlowDiameter(bright, scale)
+  sprite.width = diameter
+  sprite.height = diameter
+  sprite.tint = STAR_GLOW_TINT
+  sprite.alpha = starGlowAlpha(bright, glow)
+  return sprite
+}
+
+export function drawStarGlow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  bright: boolean,
+  glow: number,
+  scale: number,
+): void {
+  const radius = starGlowDiameter(bright, scale) / 2
+  const peak = starGlowAlpha(bright, glow)
+  const { r, g, b } = STAR_GLOW_RGB
+
+  ctx.save()
+
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, radius)
+  grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peak})`)
+  grad.addColorStop(0.08, `rgba(${r}, ${g}, ${b}, ${peak * 0.65})`)
+  grad.addColorStop(0.22, `rgba(${r}, ${g}, ${b}, ${peak * 0.24})`)
+  grad.addColorStop(0.42, `rgba(${r}, ${g}, ${b}, ${peak * 0.08})`)
+  grad.addColorStop(0.68, `rgba(${r}, ${g}, ${b}, ${peak * 0.02})`)
+  grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
+  ctx.fillStyle = grad
+  ctx.beginPath()
+  ctx.arc(x, y, radius, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+export function createStarSprite(
+  x: number,
+  y: number,
+  bright: boolean,
+  opacity = 1,
+  scale = 1,
+): Sprite {
   const texture = bright ? sparkleTexture! : dotTexture!
   const sprite = new Sprite(texture)
   sprite.anchor.set(0.5)
   sprite.x = x
   sprite.y = y
-  const size = bright ? SPARKLE_WORLD_SIZE : DOT_WORLD_SIZE
+  const baseSize = bright ? SPARKLE_WORLD_SIZE : DOT_WORLD_SIZE
+  const size = baseSize * scale
   sprite.width = size
   sprite.height = size
+  sprite.alpha = opacity
   return sprite
 }
 
@@ -72,13 +163,18 @@ export function drawStarAsset(
   x: number,
   y: number,
   bright: boolean,
-  alpha = 1,
+  opacity = 1,
+  scale = 1,
+  glow = 1,
 ): void {
+  drawStarGlow(ctx, x, y, bright, glow, scale)
+
   const img = bright ? sparkleImage : dotImage
   if (!img) return
-  const size = bright ? SPARKLE_WORLD_SIZE : DOT_WORLD_SIZE
+  const baseSize = bright ? SPARKLE_WORLD_SIZE : DOT_WORLD_SIZE
+  const size = baseSize * scale
   ctx.save()
-  ctx.globalAlpha = alpha
+  ctx.globalAlpha = opacity
   ctx.drawImage(img, x - size / 2, y - size / 2, size, size)
   ctx.restore()
 }

@@ -2,7 +2,7 @@ import { Container, Graphics, Sprite } from 'pixi.js'
 import type { ConstellationRecord } from '../../types/contracts'
 import { generateConstellation } from '../generation/generateConstellation'
 import { createStarSprite, preloadConstellationAssets } from '../renderer/constellationAssets'
-import { drawDashedLine } from '../renderer/drawStars'
+import { addStarGlow, drawDashedLine } from '../renderer/drawStars'
 
 export async function runPlacementAnimation(
   worldLayer: Container,
@@ -20,11 +20,18 @@ export async function runPlacementAnimation(
     container.addChild(burst)
 
     const starSprites: Sprite[] = []
+    const starGlows: Sprite[] = []
+    const starGlowTargets: number[] = []
     const lineGraphics = new Graphics()
     container.addChild(lineGraphics)
 
     for (const star of geometry.stars) {
-      const sprite = createStarSprite(star.x, star.y, star.bright)
+      const glowSprite = addStarGlow(container, star.x, star.y, star.bright, star.glow, star.scale)
+      starGlowTargets.push(glowSprite.alpha)
+      glowSprite.alpha = 0
+      starGlows.push(glowSprite)
+
+      const sprite = createStarSprite(star.x, star.y, star.bright, star.opacity, star.scale)
       sprite.alpha = 0
       sprite.scale.set(0)
       container.addChild(sprite)
@@ -56,9 +63,11 @@ export async function runPlacementAnimation(
         if (starElapsed < 0) return
         const t = Math.min(starElapsed / 300, 1)
         const sprite = starSprites[i]
+        const glowSprite = starGlows[i]
         const twinkle = star.bright ? 0.85 + 0.15 * Math.sin(starElapsed * 0.02) : 1
         sprite.scale.set(t)
-        sprite.alpha = t * twinkle
+        sprite.alpha = t * twinkle * star.opacity
+        glowSprite.alpha = t * twinkle * starGlowTargets[i]
       })
 
       const linesStart = burstDuration + geometry.stars.length * starStagger

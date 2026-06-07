@@ -10,6 +10,9 @@ interface PathStar {
   x: number
   y: number
   bright: boolean
+  opacity: number
+  scale: number
+  glow: number
 }
 
 function addEdge(edges: [number, number][], a: number, b: number): void {
@@ -75,6 +78,15 @@ function assignSparkles(
   return stars.map((star, i) => ({ ...star, bright: sparkle.has(i) }))
 }
 
+function assignStarDepth(stars: PathStar[], rng: SeededRandom): PathStar[] {
+  return stars.map((star) => ({
+    ...star,
+    opacity: star.bright ? 0.78 + rng.next() * 0.22 : 0.38 + rng.next() * 0.44,
+    scale: star.bright ? 0.9 + rng.next() * 0.2 : 0.78 + rng.next() * 0.28,
+    glow: star.bright ? 0.55 + rng.next() * 0.45 : 0.12 + rng.next() * 0.38,
+  }))
+}
+
 /**
  * Landing designs sweep across the sky in a zigzag along one primary axis,
  * with occasional branches — not random blobs that fold back on themselves.
@@ -86,7 +98,7 @@ function generateOrganicPath(rng: SeededRandom): { stars: PathStar[]; edges: [nu
   const stepAlong = 44 + rng.next() * 24
   const zigzagAmp = 32 + rng.next() * 22
 
-  const stars: PathStar[] = [{ x: 0, y: 0, bright: false }]
+  const stars: PathStar[] = [{ x: 0, y: 0, bright: false, opacity: 1, scale: 1, glow: 1 }]
   const edges: [number, number][] = []
 
   let along = 0
@@ -100,7 +112,7 @@ function generateOrganicPath(rng: SeededRandom): { stars: PathStar[]; edges: [nu
 
     const x = Math.cos(primary) * along + Math.cos(perp) * zig
     const y = Math.sin(primary) * along + Math.sin(perp) * zig
-    stars.push({ x, y, bright: false })
+    stars.push({ x, y, bright: false, opacity: 1, scale: 1, glow: 1 })
     addEdge(edges, i - 1, i)
   }
 
@@ -122,7 +134,7 @@ function generateOrganicPath(rng: SeededRandom): { stars: PathStar[]; edges: [nu
       const x = branchBase.x + Math.cos(branchDir) * bAlong + Math.cos(branchPerp) * bZig
       const y = branchBase.y + Math.sin(branchDir) * bAlong + Math.sin(branchPerp) * bZig
       const idx = stars.length
-      stars.push({ x, y, bright: false })
+      stars.push({ x, y, bright: false, opacity: 1, scale: 1, glow: 1 })
       addEdge(edges, prev, idx)
       prev = idx
     }
@@ -138,11 +150,15 @@ function generateOrganicPath(rng: SeededRandom): { stars: PathStar[]; edges: [nu
       x: base.x + Math.cos(forkAngle) * dist,
       y: base.y + Math.sin(forkAngle) * dist,
       bright: false,
+      opacity: 1,
+      scale: 1,
+      glow: 1,
     })
     addEdge(edges, forkFrom, idx)
   }
 
-  return { stars: assignSparkles(stars, edges, mainPathEnd, rng), edges }
+  const sparkled = assignSparkles(stars, edges, mainPathEnd, rng)
+  return { stars: assignStarDepth(sparkled, rng), edges }
 }
 
 function centerStars(stars: PathStar[]): PathStar[] {
@@ -186,6 +202,9 @@ export function generateConstellation(
       x: px * cos - py * sin,
       y: px * sin + py * cos,
       bright: star.bright,
+      opacity: star.opacity,
+      scale: star.scale,
+      glow: star.glow,
     }
   })
 

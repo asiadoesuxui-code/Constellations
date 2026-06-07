@@ -36,7 +36,7 @@ export async function createConstellationSprite(
   container.addChild(lines)
 
   for (const star of geometry.stars) {
-    addStarGraphics(container, star.x, star.y, star.bright)
+    addStarGraphics(container, star.x, star.y, star.bright, star.opacity, star.scale, star.glow)
   }
 
   return {

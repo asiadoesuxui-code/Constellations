@@ -1,5 +1,5 @@
 import { Container, Graphics, Sprite } from 'pixi.js'
-import { createStarSprite } from './constellationAssets'
+import { createStarGlowSprite, createStarSprite } from './constellationAssets'
 
 export function drawDashedLine(
   g: Graphics,
@@ -46,13 +46,30 @@ export function drawConstellationLines(
   g.stroke({ color, width: 2, alpha })
 }
 
+export function addStarGlow(
+  container: Container,
+  x: number,
+  y: number,
+  bright: boolean,
+  glow: number,
+  scale: number,
+): Sprite {
+  const glowSprite = createStarGlowSprite(x, y, bright, glow, scale)
+  container.addChild(glowSprite)
+  return glowSprite
+}
+
 export function addStarGraphics(
   container: Container,
   x: number,
   y: number,
   bright: boolean,
+  opacity = 1,
+  scale = 1,
+  glow = 1,
 ): Sprite {
-  const sprite = createStarSprite(x, y, bright)
+  addStarGlow(container, x, y, bright, glow, scale)
+  const sprite = createStarSprite(x, y, bright, opacity, scale)
   container.addChild(sprite)
   return sprite
 }

@@ -9,7 +9,7 @@ export interface ConstellationRecord {
 }
 
 export interface ConstellationGeometry {
-  stars: { x: number; y: number; bright: boolean }[]
+  stars: { x: number; y: number; bright: boolean; opacity: number; scale: number; glow: number }[]
   edges: [number, number][]
   colour: string
   glowColour: string

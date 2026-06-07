@@ -90,7 +90,15 @@ export function renderConstellationToCanvas(
 
   geometry.stars.forEach((star, i) => {
     if (i >= progress.starsRevealed) return
-    drawStarAsset(ctx, star.x * scale + offsetX, star.y * scale + offsetY, star.bright)
+    drawStarAsset(
+      ctx,
+      star.x * scale + offsetX,
+      star.y * scale + offsetY,
+      star.bright,
+      star.opacity,
+      star.scale,
+      star.glow,
+    )
   })
 
   return { canvas: targetCanvas, width, height, offsetX, offsetY }
