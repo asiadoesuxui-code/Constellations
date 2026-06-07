@@ -1,14 +1,17 @@
 import { Container, Graphics, Sprite } from 'pixi.js'
+import type { ConstellationLineStyle } from './constellationAssets'
 import { createStarGlowSprite, createStarSprite } from './constellationAssets'
 
-export function drawDashedLine(
+const ROUND_STROKE = { cap: 'round' as const, join: 'round' as const }
+
+function appendDashedLinePath(
   g: Graphics,
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-  dash = 5,
-  gap = 6,
+  dash: number,
+  gap: number,
 ): void {
   const dx = x2 - x1
   const dy = y2 - y1
@@ -31,38 +34,39 @@ export function drawDashedLine(
   }
 }
 
-export function drawConstellationLines(
-  g: Graphics,
-  stars: { x: number; y: number }[],
-  edges: [number, number][],
-  color: string | number,
-  alpha = 0.45,
-  lineWidth = 2,
+function strokeSoftLineLayers(
+  glowG: Graphics | null | undefined,
+  coreG: Graphics,
+  style: ConstellationLineStyle,
+  widthScale = 1,
+  alphaScale = 1,
 ): void {
-  drawConstellationLinesProgress(
-    g,
-    stars,
-    edges,
-    edges.map(() => 1),
+  const color = style.color
+  if (glowG) {
+    glowG.stroke({
+      color,
+      width: style.glowWidth * widthScale,
+      alpha: style.glowAlpha * alphaScale,
+      ...ROUND_STROKE,
+    })
+  }
+  coreG.stroke({
     color,
-    alpha,
-    lineWidth,
-  )
+    width: style.coreWidth * widthScale,
+    alpha: style.coreAlpha * alphaScale,
+    ...ROUND_STROKE,
+  })
 }
 
-function drawTaperedDashedLine(
-  g: Graphics,
+function drawTaperedSoftDashedLine(
+  glowG: Graphics | null | undefined,
+  coreG: Graphics,
   x1: number,
   y1: number,
   x2: number,
   y2: number,
   progress: number,
-  minWidth: number,
-  maxWidth: number,
-  color: string | number,
-  alpha: number,
-  dash = 5,
-  gap = 6,
+  style: ConstellationLineStyle,
 ): void {
   const dx = x2 - x1
   const dy = y2 - y1
@@ -76,32 +80,69 @@ function drawTaperedDashedLine(
   let drawing = true
 
   while (dist < drawLen) {
-    const seg = Math.min(drawing ? dash : gap, drawLen - dist)
+    const seg = Math.min(drawing ? style.dash : style.gap, drawLen - dist)
     if (drawing) {
       const midDist = dist + seg / 2
       const midT = midDist / len
-      const width = minWidth + (maxWidth - minWidth) * midT
-      const segAlpha = alpha * (0.5 + 0.5 * midT)
-      g.moveTo(x1 + ux * dist, y1 + uy * dist)
-      g.lineTo(x1 + ux * (dist + seg), y1 + uy * (dist + seg))
-      g.stroke({ color, width, alpha: segAlpha })
+      const widthScale = 0.35 + 0.65 * midT
+      const alphaScale = 0.55 + 0.45 * midT
+      const sx = x1 + ux * dist
+      const sy = y1 + uy * dist
+      const ex = x1 + ux * (dist + seg)
+      const ey = y1 + uy * (dist + seg)
+
+      if (glowG) {
+        glowG.moveTo(sx, sy)
+        glowG.lineTo(ex, ey)
+        glowG.stroke({
+          color: style.color,
+          width: style.glowWidth * widthScale,
+          alpha: style.glowAlpha * alphaScale,
+          ...ROUND_STROKE,
+        })
+      }
+      coreG.moveTo(sx, sy)
+      coreG.lineTo(ex, ey)
+      coreG.stroke({
+        color: style.color,
+        width: style.coreWidth * widthScale,
+        alpha: style.coreAlpha * alphaScale,
+        ...ROUND_STROKE,
+      })
     }
     dist += seg
     drawing = !drawing
   }
 }
 
+export function drawConstellationLines(
+  coreG: Graphics,
+  stars: { x: number; y: number }[],
+  edges: [number, number][],
+  style: ConstellationLineStyle,
+  glowG?: Graphics | null,
+): void {
+  drawConstellationLinesProgress(
+    coreG,
+    stars,
+    edges,
+    edges.map(() => 1),
+    style,
+    glowG,
+  )
+}
+
 export function drawConstellationLinesProgress(
-  g: Graphics,
+  coreG: Graphics,
   stars: { x: number; y: number }[],
   edges: [number, number][],
   edgeProgress: number[],
-  color: string | number,
-  alpha = 0.45,
-  lineWidth = 2,
+  style: ConstellationLineStyle,
+  glowG?: Graphics | null,
   taperedReveal = false,
 ): void {
-  g.clear()
+  coreG.clear()
+  glowG?.clear()
 
   edges.forEach(([a, b], i) => {
     const t = edgeProgress[i] ?? 0
@@ -110,24 +151,16 @@ export function drawConstellationLinesProgress(
     const sb = stars[b]
 
     if (taperedReveal && t < 1) {
-      drawTaperedDashedLine(
-        g,
-        sa.x,
-        sa.y,
-        sb.x,
-        sb.y,
-        t,
-        Math.max(0.35, lineWidth * 0.22),
-        lineWidth,
-        color,
-        alpha,
-      )
+      drawTaperedSoftDashedLine(glowG, coreG, sa.x, sa.y, sb.x, sb.y, t, style)
       return
     }
 
     const endX = sa.x + (sb.x - sa.x) * t
     const endY = sa.y + (sb.y - sa.y) * t
-    drawDashedLine(g, sa.x, sa.y, endX, endY)
+    if (glowG) {
+      appendDashedLinePath(glowG, sa.x, sa.y, endX, endY, style.dash, style.gap)
+    }
+    appendDashedLinePath(coreG, sa.x, sa.y, endX, endY, style.dash, style.gap)
   })
 
   const hasDashed = edges.some((_, i) => {
@@ -135,7 +168,7 @@ export function drawConstellationLinesProgress(
     return t > 0 && (!taperedReveal || t >= 1)
   })
   if (hasDashed) {
-    g.stroke({ color, width: lineWidth, alpha })
+    strokeSoftLineLayers(glowG, coreG, style)
   }
 }
 
@@ -211,5 +244,15 @@ export function drawLandingConstellationLines(
   edges: [number, number][],
   alpha = 0.68,
 ): void {
-  drawConstellationLines(g, stars, edges, LANDING_GOLD, alpha)
+  drawConstellationLines(g, stars, edges, {
+    color: LANDING_GOLD,
+    coreWidth: 1.4,
+    coreAlpha: alpha * 0.55,
+    coreBlur: 0.9,
+    glowWidth: 3.2,
+    glowAlpha: alpha * 0.22,
+    glowBlur: 2,
+    dash: 5,
+    gap: 6,
+  })
 }

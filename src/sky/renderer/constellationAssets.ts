@@ -13,6 +13,22 @@ export const LINE_STYLE = {
   cap: 'round' as CanvasLineCap,
 }
 
+/** Pixi line rendering tuned to match soft star glow sprites */
+export interface ConstellationLineStyle {
+  color: number
+  coreWidth: number
+  coreAlpha: number
+  coreBlur: number
+  glowWidth: number
+  glowAlpha: number
+  glowBlur: number
+  dash: number
+  gap: number
+}
+
+/** Visual scale for the user's constellation relative to others in the sky */
+export const OWN_CONSTELLATION_SCALE = 1.38
+
 /** Native export dimensions from Figma */
 export const STAR_DOT_SIZE = 33
 export const STAR_SPARKLE_SIZE = 93
@@ -81,6 +97,20 @@ function createSoftGlowTexture(): Texture {
 /** Warm gold glow matching constellation palette */
 const STAR_GLOW_RGB = { r: 209, g: 188, b: 160 }
 const STAR_GLOW_TINT = 0xf5e6cc
+
+export function getConstellationLineStyle(isOwn = false): ConstellationLineStyle {
+  return {
+    color: STAR_GLOW_TINT,
+    coreWidth: isOwn ? 1.3 : 0.95,
+    coreAlpha: isOwn ? 0.48 : 0.28,
+    coreBlur: isOwn ? 1.1 : 0.9,
+    glowWidth: isOwn ? 3.4 : 2.2,
+    glowAlpha: isOwn ? 0.22 : 0.11,
+    glowBlur: isOwn ? 2.8 : 2.4,
+    dash: 5,
+    gap: 6,
+  }
+}
 
 function starGlowAlpha(bright: boolean, glow: number): number {
   return glow * (bright ? 0.52 : 0.34)

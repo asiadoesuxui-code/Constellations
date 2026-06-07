@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js'
+import { BlurFilter, Container, Graphics } from 'pixi.js'
 import type { ConstellationGeometry, ConstellationRecord } from '../../types/contracts'
 import {
   updateConstellationReveal,
@@ -12,7 +12,11 @@ import {
   type StarTwinkleState,
 } from '../animations/starTwinkle'
 import { generateConstellation } from '../generation/generateConstellation'
-import { preloadConstellationAssets } from './constellationAssets'
+import {
+  getConstellationLineStyle,
+  OWN_CONSTELLATION_SCALE,
+  preloadConstellationAssets,
+} from './constellationAssets'
 import { addStarGraphics, drawConstellationLines } from './drawStars'
 
 export interface CreateConstellationOptions {
@@ -54,21 +58,25 @@ export async function createConstellationSprite(
   container.y = record.y
   container.label = record.id
   if (isOwn) {
-    container.scale.set(1.1)
+    container.scale.set(OWN_CONSTELLATION_SCALE)
   }
 
-  const lineAlpha = isOwn ? 0.95 : 0.62
-  const lineWidth = isOwn ? 2.8 : 2.1
+  const lineStyle = getConstellationLineStyle(isOwn)
   const animateReveal = options.animateReveal ?? false
+  const linesGlow = new Graphics()
+  linesGlow.filters = [new BlurFilter({ strength: lineStyle.glowBlur })]
+  linesGlow.blendMode = 'screen'
   const lines = new Graphics()
+  lines.filters = [new BlurFilter({ strength: lineStyle.coreBlur })]
+  container.addChild(linesGlow)
   container.addChild(lines)
   if (!animateReveal) {
-    drawConstellationLines(lines, geometry.stars, geometry.edges, geometry.colour, lineAlpha, lineWidth)
+    drawConstellationLines(lines, geometry.stars, geometry.edges, lineStyle, linesGlow)
   }
 
-  const starOpacityBoost = isOwn ? 1.25 : 1.02
-  const starScaleBoost = isOwn ? 1.18 : 1.04
-  const starGlowBoost = isOwn ? 1.35 : 0.95
+  const starOpacityBoost = isOwn ? 1.35 : 1
+  const starScaleBoost = isOwn ? 1.28 : 1
+  const starGlowBoost = isOwn ? 1.48 : 0.9
 
   const twinkleStars = []
   for (const star of geometry.stars) {
@@ -93,8 +101,8 @@ export async function createConstellationSprite(
     ? {
         geometry,
         lines,
-        lineAlpha,
-        lineWidth,
+        linesGlow,
+        lineStyle,
         startMs,
         complete: false,
         onComplete: options.onRevealComplete,
@@ -104,7 +112,7 @@ export async function createConstellationSprite(
   return {
     container,
     record,
-    hitRadius: envelopeRadius(geometry.stars),
+    hitRadius: envelopeRadius(geometry.stars) * (isOwn ? OWN_CONSTELLATION_SCALE : 1),
     alpha: 1,
     renderable: true,
     twinkle,

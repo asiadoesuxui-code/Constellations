@@ -308,7 +308,8 @@ export class PixiSkyRenderer {
       resolveReveal = resolve
     })
 
-    const panPromise = this.camera.panTo(record.x, record.y, 2800, 1)
+    const revealZoom = record.id === this.ownConstellationId ? 1.65 : 1
+    const panPromise = this.camera.panTo(record.x, record.y, 2800, revealZoom)
     await this.addConstellation(record, {
       twinkleStartMs: startMs,
       twinkleFromReveal: true,

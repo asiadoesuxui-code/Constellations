@@ -67,7 +67,7 @@ export class ViewportCuller {
         fade.current = Math.max(fade.target, fade.current - fadeSpeed * deltaMs)
       }
 
-      const emphasis = id === ownConstellationId ? 1 : 0.78
+      const emphasis = id === ownConstellationId ? 1 : 0.7
       updateConstellationAlpha(visual, fade.current * emphasis)
     }
   }

@@ -1,5 +1,6 @@
 import { Graphics } from 'pixi.js'
 import type { ConstellationGeometry } from '../../types/contracts'
+import type { ConstellationLineStyle } from '../renderer/constellationAssets'
 import { drawConstellationLinesProgress } from '../renderer/drawStars'
 import { applyStarTwinkle, type StarRevealModifiers, type StarTwinkleState } from './starTwinkle'
 
@@ -68,8 +69,8 @@ export function getRevealEnvironmentRestoreMultiplier(
 export interface ConstellationRevealState {
   geometry: ConstellationGeometry
   lines: Graphics
-  lineAlpha: number
-  lineWidth: number
+  linesGlow: Graphics
+  lineStyle: ConstellationLineStyle
   startMs: number
   complete: boolean
   onComplete?: () => void
@@ -99,9 +100,8 @@ export function updateConstellationReveal(
     reveal.geometry.stars,
     reveal.geometry.edges,
     edgeProgress,
-    reveal.geometry.colour,
-    reveal.lineAlpha,
-    reveal.lineWidth,
+    reveal.lineStyle,
+    reveal.linesGlow,
     true,
   )
 
