@@ -19,6 +19,7 @@ export class ViewportCuller {
     visuals: Map<string, ConstellationVisual>,
     bounds: { minX: number; maxX: number; minY: number; maxY: number },
     deltaMs: number,
+    ownConstellationId: string | null = null,
   ): void {
     const innerMinX = bounds.minX - this.margin
     const innerMaxX = bounds.maxX + this.margin
@@ -66,7 +67,8 @@ export class ViewportCuller {
         fade.current = Math.max(fade.target, fade.current - fadeSpeed * deltaMs)
       }
 
-      updateConstellationAlpha(visual, fade.current)
+      const emphasis = id === ownConstellationId ? 1 : 0.78
+      updateConstellationAlpha(visual, fade.current * emphasis)
     }
   }
 }

@@ -81,6 +81,8 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       rendererRef.current?.worldToScreen(x, y) ?? { x: 0, y: 0 },
     getConstellationPositions: () =>
       rendererRef.current?.getConstellationPositions() ?? [],
+    getConstellationLabels: () =>
+      rendererRef.current?.getConstellationLabels() ?? [],
   }))
 
   useEffect(() => {

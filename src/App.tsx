@@ -8,7 +8,7 @@ import { SkyCanvas } from './sky/SkyCanvas'
 import type { SkyCanvasRef } from './types/contracts'
 import { LandingPopup } from './components/LandingPopup'
 import { HoverTooltip } from './components/HoverTooltip'
-import { ConstellationLabel } from './components/ConstellationLabel'
+import { SkyConstellationLabels } from './components/SkyConstellationLabels'
 import { ShareCard } from './components/ShareCard'
 import { captureShareCard, downloadImage } from './components/shareCardCapture'
 import { useSubmissionFlow } from './hooks/useSubmissionFlow'
@@ -17,7 +17,6 @@ import './styles/popup.css'
 function App() {
   const skyRef = useRef<SkyCanvasRef>(null)
   const [hover, setHover] = useState<{ wish: string; x: number; y: number } | null>(null)
-  const [labelPos, setLabelPos] = useState({ x: 0, y: 0 })
   const getExistingPositions = useCallback(
     () => skyRef.current?.getConstellationPositions() ?? [],
     [],
@@ -71,25 +70,6 @@ function App() {
     }
   }, [flow.phase, flow.newConstellation, onRevealComplete])
 
-  useEffect(() => {
-    if (flow.phase !== 'card' && flow.phase !== 'revealing') return
-    if (!flow.newConstellation) return
-
-    const updatePositions = () => {
-      const screen = skyRef.current?.worldToScreen(
-        flow.newConstellation!.x,
-        flow.newConstellation!.y,
-      )
-      if (screen) {
-        setLabelPos({ x: screen.x, y: screen.y - 130 })
-      }
-    }
-
-    updatePositions()
-    const interval = setInterval(updatePositions, 16)
-    return () => clearInterval(interval)
-  }, [flow.phase, flow.newConstellation])
-
   const handleSaveCard = async () => {
     const dataUrl = await captureShareCard()
     if (dataUrl) downloadImage(dataUrl)
@@ -127,11 +107,9 @@ function App() {
 
       <HoverTooltip wish={hover?.wish ?? null} x={hover?.x ?? 0} y={hover?.y ?? 0} />
 
-      <ConstellationLabel
-        visible={flow.phase === 'revealing' || flow.phase === 'card'}
-        x={labelPos.x}
-        y={labelPos.y}
-        wish={flow.newConstellation?.wish ?? ''}
+      <SkyConstellationLabels
+        skyRef={skyRef}
+        visible={!flow.showPopup}
       />
 
       {flow.showSaveCard && (

@@ -3,6 +3,7 @@ import {
   insertConstellation,
 } from './constellations'
 import { CONSTELLATION_MIN_DISTANCE, findEmptyPosition } from './placement'
+import { getSeedConstellationPositions } from './seedConstellations'
 import { RateLimitError, rateLimiter } from './rateLimit'
 import { moderateName, moderateWish } from '../moderation'
 import { isSupabaseConfigured } from '../lib/supabase/client'
@@ -60,11 +61,14 @@ export async function submitWish(
   const colour_palette = deriveColourPalette(seed)
 
   try {
-    const nearby = isSupabaseConfigured()
-      ? await fetchNearbyPositions(0, 0, SEARCH_RADIUS)
-      : existingPositions
+    const occupied = [
+      ...(isSupabaseConfigured()
+        ? await fetchNearbyPositions(0, 0, SEARCH_RADIUS)
+        : existingPositions),
+      ...getSeedConstellationPositions(),
+    ]
 
-    const position = findEmptyPosition(nearby, CONSTELLATION_MIN_DISTANCE, seed)
+    const position = findEmptyPosition(occupied, CONSTELLATION_MIN_DISTANCE, seed)
 
     if (isSupabaseConfigured()) {
       const constellation = await insertConstellation(

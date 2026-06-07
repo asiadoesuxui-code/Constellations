@@ -320,23 +320,62 @@
   z-index: 40;
   pointer-events: none;
   font-family: var(--font-serif);
-  font-size: 0.875rem;
-  font-style: italic;
-  color: var(--text-secondary);
+  text-align: left;
   white-space: nowrap;
   transform: translate(-50%, -100%);
   padding-bottom: 0.5rem;
 }
 
-.constellation-label-tag {
+.constellation-label-name {
   display: block;
-  font-family: var(--font-serif);
-  font-size: 0.6875rem;
+  font-size: 14px;
+  font-weight: 700;
   font-style: normal;
-  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent-gold);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.constellation-label-wish {
+  display: block;
+  font-size: 20px;
+  font-style: normal;
+  color: var(--text-secondary);
+}
+
+.sky-constellation-label {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  font-family: var(--font-serif);
+  text-align: left;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+}
+
+.sky-constellation-label-name {
+  display: block;
+  font-weight: 700;
+  font-style: normal;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  margin-bottom: 0.3rem;
+  line-height: 1.2;
+}
+
+.sky-constellation-label-wish {
+  display: block;
+  font-style: normal;
+  color: var(--text-secondary);
+  line-height: 1.25;
+}
+
+.sky-constellation-label--own .sky-constellation-label-name {
+  letter-spacing: 0.04em;
+}
+
+.sky-constellation-label--own .sky-constellation-label-wish {
+  color: #f0e4cc;
 }
 
 .hover-tooltip {

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { deriveColourPalette, findEmptyPosition, hashWish } from '../_shared/hash.ts'
+import { getSeedConstellationPositions } from '../_shared/seedConstellations.ts'
 import { moderateName, moderateWish } from '../_shared/moderation/index.ts'
 import { checkRateLimit, RateLimitError } from '../_shared/rateLimit.ts'
 
@@ -92,7 +93,11 @@ Deno.serve(async (req) => {
       .gte('y', -searchRadius)
       .lte('y', searchRadius)
 
-    const position = findEmptyPosition(nearby ?? [], 360, seed)
+    const position = findEmptyPosition(
+      [...(nearby ?? []), ...getSeedConstellationPositions()],
+      360,
+      seed,
+    )
 
     const { data: inserted, error: insertError } = await supabase
       .from('constellations')

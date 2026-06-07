@@ -14,6 +14,7 @@ import { addStarGraphics, drawConstellationLines } from './drawStars'
 export interface CreateConstellationOptions {
   twinkleStartMs?: number
   twinkleFromReveal?: boolean
+  isOwn?: boolean
 }
 
 function envelopeRadius(stars: ConstellationGeometry['stars']): number {
@@ -40,14 +41,29 @@ export async function createConstellationSprite(
 ): Promise<ConstellationVisual> {
   await preloadConstellationAssets()
   const geometry = generateConstellation(record.seed, record.colour_palette)
+  const isOwn = options.isOwn ?? false
   const container = new Container()
   container.x = record.x
   container.y = record.y
   container.label = record.id
+  if (isOwn) {
+    container.scale.set(1.1)
+  }
 
   const lines = new Graphics()
-  drawConstellationLines(lines, geometry.stars, geometry.edges, geometry.colour)
+  drawConstellationLines(
+    lines,
+    geometry.stars,
+    geometry.edges,
+    geometry.colour,
+    isOwn ? 0.95 : 0.62,
+    isOwn ? 2.8 : 2.1,
+  )
   container.addChild(lines)
+
+  const starOpacityBoost = isOwn ? 1.25 : 1.02
+  const starScaleBoost = isOwn ? 1.18 : 1.04
+  const starGlowBoost = isOwn ? 1.35 : 0.95
 
   const twinkleStars = []
   for (const star of geometry.stars) {
@@ -56,9 +72,9 @@ export async function createConstellationSprite(
       star.x,
       star.y,
       star.bright,
-      star.opacity,
-      star.scale,
-      star.glow,
+      Math.min(1, star.opacity * starOpacityBoost),
+      star.scale * starScaleBoost,
+      star.glow * starGlowBoost,
     )
     twinkleStars.push(
       buildTwinkleStar(sprite, glow, star.bright, star.opacity, createStarPhase(star.x, star.y)),

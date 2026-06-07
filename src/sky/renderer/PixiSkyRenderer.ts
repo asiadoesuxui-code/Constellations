@@ -1,6 +1,7 @@
 import { Application, Container } from 'pixi.js'
 import { CONSTELLATION_MIN_DISTANCE } from '../../api/placement'
-import type { BoundingBox, ConstellationRecord } from '../../types/contracts'
+import { getSeedConstellations } from '../../api/seedConstellations'
+import type { BoundingBox, ConstellationLabelTarget, ConstellationRecord } from '../../types/contracts'
 import { recordFromWish } from '../skyApi'
 import { CameraController } from '../camera/CameraController'
 import { IdleDrift } from '../camera/idleDrift'
@@ -99,6 +100,7 @@ export class PixiSkyRenderer {
       this.app.screen.height,
     )
     this.worldLayer.addChild(this.constellationLayer)
+    this.loadSeedConstellations()
 
     this.panZoom = new PanZoomHandler(canvas, this.camera, () => this.onUserInteraction())
 
@@ -124,7 +126,7 @@ export class PixiSkyRenderer {
         updateConstellationTwinkle(visual, nowMs, deltaMs)
       }
       const bounds = this.camera.getBounds(this.app.screen.width, this.app.screen.height)
-      this.culler.update(this.visuals, bounds, deltaMs)
+      this.culler.update(this.visuals, bounds, deltaMs, this.ownConstellationId)
       this.scheduleFetch(bounds)
     })
 
@@ -162,6 +164,12 @@ export class PixiSkyRenderer {
 
   loadConstellationsFromData(constellations: ConstellationRecord[]): void {
     for (const record of constellations) {
+      void this.addConstellation(record)
+    }
+  }
+
+  private loadSeedConstellations(): void {
+    for (const record of getSeedConstellations()) {
       void this.addConstellation(record)
     }
   }
@@ -246,6 +254,7 @@ export class PixiSkyRenderer {
       const visual = await createConstellationSprite(record, {
         twinkleStartMs: options.twinkleStartMs,
         twinkleFromReveal: options.twinkleFromReveal,
+        isOwn: record.id === this.ownConstellationId,
       })
       if (this.visuals.has(record.id)) {
         visual.container.destroy({ children: true })
@@ -297,6 +306,39 @@ export class PixiSkyRenderer {
 
   worldToScreen(x: number, y: number) {
     return this.camera.worldToScreen(x, y, this.app.screen.width, this.app.screen.height)
+  }
+
+  getConstellationLabels(): ConstellationLabelTarget[] {
+    if (!this.appInitialized) return []
+
+    const screenW = this.app.screen.width
+    const screenH = this.app.screen.height
+    const labels: ConstellationLabelTarget[] = []
+
+    for (const visual of this.visuals.values()) {
+      if (!visual.renderable || visual.alpha < 0.08) continue
+      if (!visual.record.name) continue
+
+      const labelWorldY = visual.record.y - visual.hitRadius - 48
+      const screen = this.camera.worldToScreen(
+        visual.record.x,
+        labelWorldY,
+        screenW,
+        screenH,
+      )
+
+      labels.push({
+        id: visual.record.id,
+        name: visual.record.name,
+        wish: visual.record.wish,
+        screenX: screen.x,
+        screenY: screen.y,
+        opacity: visual.alpha,
+        isOwn: visual.record.id === this.ownConstellationId,
+      })
+    }
+
+    return labels
   }
 
   private handlePointerLeave = (): void => {

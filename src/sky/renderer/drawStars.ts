@@ -37,13 +37,14 @@ export function drawConstellationLines(
   edges: [number, number][],
   color: string | number,
   alpha = 0.45,
+  lineWidth = 2,
 ): void {
   for (const [a, b] of edges) {
     const sa = stars[a]
     const sb = stars[b]
     drawDashedLine(g, sa.x, sa.y, sb.x, sb.y)
   }
-  g.stroke({ color, width: 2, alpha })
+  g.stroke({ color, width: lineWidth, alpha })
 }
 
 export function addStarGlow(

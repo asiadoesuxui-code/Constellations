@@ -40,6 +40,16 @@ export interface SubmitWishError {
 
 export type SkyViewMode = 'landing' | 'exploring'
 
+export interface ConstellationLabelTarget {
+  id: string
+  name: string
+  wish: string
+  screenX: number
+  screenY: number
+  opacity: number
+  isOwn: boolean
+}
+
 export interface SkyCanvasRef {
   panTo(x: number, y: number, durationMs?: number): Promise<void>
   revealConstellation(record: ConstellationRecord): Promise<void>
@@ -54,6 +64,7 @@ export interface SkyCanvasRef {
   getCameraPosition(): { x: number; y: number; zoom: number }
   worldToScreen(x: number, y: number): { x: number; y: number }
   getConstellationPositions(): { x: number; y: number }[]
+  getConstellationLabels(): ConstellationLabelTarget[]
 }
 
 export type ColourPalette = ConstellationRecord['colour_palette']

@@ -148,8 +148,8 @@ export class AmbientStarsLayer {
       return
     }
 
-    this.alphaMultiplier = 0.28
-    this.sizeMultiplier = 0.52
+    this.alphaMultiplier = 0.1
+    this.sizeMultiplier = 0.34
   }
 
   update(deltaMs: number): void {
@@ -157,8 +157,9 @@ export class AmbientStarsLayer {
     for (const star of this.stars) {
       const twinkle =
         star.baseAlpha * (0.7 + 0.3 * Math.sin(this.time * star.speed + star.phase))
-      const flarePenalty = this.mode === 'exploring' && star.kind === 'flare' ? 0.45 : 1
-      star.graphics.alpha = twinkle * this.alphaMultiplier * flarePenalty
+      const flarePenalty = this.mode === 'exploring' && star.kind === 'flare' ? 0.15 : 1
+      const softPenalty = this.mode === 'exploring' && star.kind === 'soft' ? 0.55 : 1
+      star.graphics.alpha = twinkle * this.alphaMultiplier * flarePenalty * softPenalty
       star.graphics.scale.set(this.sizeMultiplier)
     }
   }
