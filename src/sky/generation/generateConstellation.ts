@@ -83,7 +83,7 @@ function assignStarDepth(stars: PathStar[], rng: SeededRandom): PathStar[] {
     ...star,
     opacity: star.bright ? 0.78 + rng.next() * 0.22 : 0.38 + rng.next() * 0.44,
     scale: star.bright ? 0.9 + rng.next() * 0.2 : 0.78 + rng.next() * 0.28,
-    glow: star.bright ? 0.55 + rng.next() * 0.45 : 0.12 + rng.next() * 0.38,
+    glow: star.bright ? 0.58 + rng.next() * 0.42 : 0.28 + rng.next() * 0.42,
   }))
 }
 

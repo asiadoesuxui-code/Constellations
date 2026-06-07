@@ -68,10 +68,10 @@ function createSoftGlowTexture(): Texture {
   const cx = size / 2
   const grad = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx)
   grad.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  grad.addColorStop(0.08, 'rgba(255, 255, 255, 0.65)')
-  grad.addColorStop(0.22, 'rgba(255, 255, 255, 0.24)')
-  grad.addColorStop(0.42, 'rgba(255, 255, 255, 0.08)')
-  grad.addColorStop(0.68, 'rgba(255, 255, 255, 0.02)')
+  grad.addColorStop(0.08, 'rgba(255, 255, 255, 0.62)')
+  grad.addColorStop(0.22, 'rgba(255, 255, 255, 0.28)')
+  grad.addColorStop(0.42, 'rgba(255, 255, 255, 0.1)')
+  grad.addColorStop(0.65, 'rgba(255, 255, 255, 0.03)')
   grad.addColorStop(1, 'rgba(255, 255, 255, 0)')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, size, size)
@@ -83,11 +83,11 @@ const STAR_GLOW_RGB = { r: 209, g: 188, b: 160 }
 const STAR_GLOW_TINT = 0xf5e6cc
 
 function starGlowAlpha(bright: boolean, glow: number): number {
-  return glow * (bright ? 0.48 : 0.3)
+  return glow * (bright ? 0.52 : 0.34)
 }
 
 function starGlowDiameter(bright: boolean, scale: number): number {
-  return (bright ? 76 : 50) * scale
+  return (bright ? 118 : 76) * scale
 }
 
 export function createStarGlowSprite(
@@ -106,6 +106,7 @@ export function createStarGlowSprite(
   sprite.height = diameter
   sprite.tint = STAR_GLOW_TINT
   sprite.alpha = starGlowAlpha(bright, glow)
+  sprite.blendMode = 'screen'
   return sprite
 }
 
@@ -122,13 +123,14 @@ export function drawStarGlow(
   const { r, g, b } = STAR_GLOW_RGB
 
   ctx.save()
+  ctx.globalCompositeOperation = 'screen'
 
   const grad = ctx.createRadialGradient(x, y, 0, x, y, radius)
   grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${peak})`)
-  grad.addColorStop(0.08, `rgba(${r}, ${g}, ${b}, ${peak * 0.65})`)
-  grad.addColorStop(0.22, `rgba(${r}, ${g}, ${b}, ${peak * 0.24})`)
-  grad.addColorStop(0.42, `rgba(${r}, ${g}, ${b}, ${peak * 0.08})`)
-  grad.addColorStop(0.68, `rgba(${r}, ${g}, ${b}, ${peak * 0.02})`)
+  grad.addColorStop(0.08, `rgba(${r}, ${g}, ${b}, ${peak * 0.62})`)
+  grad.addColorStop(0.22, `rgba(${r}, ${g}, ${b}, ${peak * 0.28})`)
+  grad.addColorStop(0.42, `rgba(${r}, ${g}, ${b}, ${peak * 0.1})`)
+  grad.addColorStop(0.65, `rgba(${r}, ${g}, ${b}, ${peak * 0.03})`)
   grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
   ctx.fillStyle = grad
   ctx.beginPath()
