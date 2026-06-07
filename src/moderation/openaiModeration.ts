@@ -23,10 +23,11 @@ function unavailableFallback(): OpenAIModerationResult {
 }
 
 export async function checkOpenAIModeration(
-  wish: string,
-  apiKey?: string,
+  text: string,
+  options?: { apiKey?: string; buildPrompt?: (value: string) => string },
 ): Promise<OpenAIModerationResult> {
-  const key = apiKey ?? getOpenAIApiKey()
+  const key = options?.apiKey ?? getOpenAIApiKey()
+  const buildPrompt = options?.buildPrompt ?? buildModerationPrompt
 
   if (!key) {
     return unavailableFallback()
@@ -45,13 +46,13 @@ export async function checkOpenAIModeration(
       messages: [
         {
           role: 'user',
-          content: buildModerationPrompt(wish),
+          content: buildPrompt(text),
         },
       ],
     })
 
-    const text = completion.choices[0]?.message?.content ?? ''
-    const parsed = parseModerationResponse(text)
+    const responseText = completion.choices[0]?.message?.content ?? ''
+    const parsed = parseModerationResponse(responseText)
 
     if (!parsed.approved) {
       return parsed

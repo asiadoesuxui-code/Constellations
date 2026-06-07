@@ -6,6 +6,7 @@ function rowToRecord(row: ConstellationRow): ConstellationRecord {
   return {
     id: row.id,
     created_at: row.created_at,
+    name: row.name ?? '',
     wish: row.wish,
     seed: Number(row.seed),
     x: row.x,
@@ -43,6 +44,7 @@ export async function getConstellations(
 }
 
 export async function insertConstellation(
+  name: string,
   wish: string,
   seed: number,
   x: number,
@@ -56,6 +58,7 @@ export async function insertConstellation(
   const { data, error } = await getSupabaseClient()
     .from('constellations')
     .insert({
+      name,
       wish,
       seed,
       x,

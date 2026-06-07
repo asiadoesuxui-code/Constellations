@@ -4,6 +4,8 @@ import '../styles/popup.css'
 
 interface LandingPopupProps {
   visible: boolean
+  name: string
+  onNameChange: (value: string) => void
   wish: string
   onWishChange: (value: string) => void
   onSubmit: () => void
@@ -50,6 +52,8 @@ function PopupStar() {
 
 export function LandingPopup({
   visible,
+  name,
+  onNameChange,
   wish,
   onWishChange,
   onSubmit,
@@ -76,6 +80,21 @@ export function LandingPopup({
           >
             <PopupStar />
             <h1 className="popup-prompt">wish upon a star</h1>
+            <div className="name-field">
+              <div className="name-line">
+                <span className="name-prefix">name:</span>
+                <input
+                  className="name-input"
+                  type="text"
+                  value={name}
+                  onChange={(e) => onNameChange(e.target.value.replace(/\s/g, ''))}
+                  maxLength={30}
+                  disabled={isSubmitting}
+                  autoComplete="given-name"
+                />
+                <span className="name-rule" aria-hidden="true" />
+              </div>
+            </div>
             <div className="wish-field">
               <div className="wish-lines">
                 <span className="wish-prefix">I wish</span>
@@ -97,7 +116,7 @@ export function LandingPopup({
               type="button"
               className="submit-btn"
               onClick={onSubmit}
-              disabled={isSubmitting || !wish.trim()}
+              disabled={isSubmitting || !name.trim() || !wish.trim()}
             >
               {isSubmitting ? 'Sending...' : 'Send your wish'}
             </button>

@@ -7,6 +7,6 @@ export type CheckResult = ModerationDecision
 export interface LegacyModerationResult {
   allowed: boolean
   reason?: string
-  failedCheck?: 'profanity' | 'language' | 'openai'
+  failedCheck?: 'profanity' | 'language' | 'openai' | 'format'
   needsReview?: boolean
 }

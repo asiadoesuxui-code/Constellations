@@ -9,17 +9,27 @@ const NON_ENGLISH_LANGUAGES = new Set([
 ])
 
 const ENGLISH_WISH_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'be', 'find', 'finds', 'for', 'friend', 'friends',
-  'from', 'happiness', 'healing', 'health', 'home', 'hope', 'hopes', 'i',
-  'in', 'is', 'joy', 'kindness', 'love', 'may', 'my', 'of', 'on', 'our',
-  'peace', 'safe', 'see', 'sky', 'star', 'stars', 'strength', 'that', 'the',
-  'to', 'together', 'us', 'we', 'wish', 'wishes', 'with', 'world', 'you',
-  'your', 'dream', 'dreams', 'light', 'brighter', 'future', 'gratitude',
-  'courage', 'family', 'forever', 'free', 'happiness', 'kind', 'better',
-  'always', 'everyone', 'everybody', 'all', 'more', 'less', 'good', 'well',
+  'a', 'an', 'and', 'are', 'am', 'as', 'at', 'be', 'been', 'being', 'but',
+  'can', 'could', 'do', 'does', 'did', 'for', 'from', 'get', 'go', 'going',
+  'had', 'has', 'have', 'he', 'her', 'him', 'his', 'i', 'if', 'in', 'is',
+  'it', 'its', 'just', 'me', 'more', 'my', 'no', 'not', 'of', 'on', 'one',
+  'or', 'our', 'out', 'she', 'so', 'some', 'than', 'that', 'the', 'their',
+  'them', 'they', 'this', 'to', 'too', 'up', 'us', 'was', 'we', 'were',
+  'what', 'when', 'who', 'will', 'with', 'would', 'you', 'your',
+  'wish', 'wishes', 'wished', 'hope', 'hopes', 'hoped', 'want', 'wants',
+  'wanted', 'need', 'needs', 'needed', 'love', 'loved', 'find', 'finds',
+  'friend', 'friends', 'family', 'happiness', 'healing', 'health', 'home',
+  'joy', 'kindness', 'peace', 'safe', 'see', 'sky', 'star', 'stars',
+  'strength', 'together', 'world', 'dream', 'dreams', 'light', 'brighter',
+  'future', 'gratitude', 'courage', 'forever', 'free', 'kind', 'better',
+  'always', 'everyone', 'everybody', 'all', 'less', 'good', 'well', 'life',
+  'live', 'learn', 'make', 'feel', 'feels', 'feeling', 'again', 'back',
+  'able', 'become', 'keep', 'know', 'like', 'much', 'never', 'new', 'now',
+  'over', 'own', 'really', 'still', 'there', 'thing', 'things', 'time',
+  'very', 'way', 'work', 'year', 'years',
 ])
 
-function isAsciiText(text: string): boolean {
+function isLatinScriptText(text: string): boolean {
   return /^[\x20-\x7E]+$/.test(text)
 }
 
@@ -35,54 +45,106 @@ function countEnglishWishWords(text: string): number {
   return tokens.filter((token) => ENGLISH_WISH_WORDS.has(token)).length
 }
 
+function hasWishIntent(text: string): boolean {
+  const lower = text.toLowerCase()
+  return (
+    /\bi\s+wish\b/.test(lower) ||
+    /\bwish\b/.test(lower) ||
+    /\bi\s+(want|hope|need|could|would|can|may)\b/.test(lower)
+  )
+}
+
+function looksLikeGibberish(text: string): boolean {
+  const trimmed = text.trim()
+
+  if (/(.)\1{5,}/.test(trimmed)) return true
+  if (/^[^a-zA-Z]*$/.test(trimmed)) return true
+
+  const tokens = trimmed.toLowerCase().match(/[a-z']+/g) ?? []
+  if (tokens.length === 0) return true
+
+  if (hasWishIntent(trimmed) || countEnglishWishWords(trimmed) > 0) {
+    return false
+  }
+
+  const joined = tokens.join('')
+  const vowelCount = (joined.match(/[aeiou]/g) ?? []).length
+  if (joined.length > 0 && vowelCount / joined.length < 0.2) return true
+
+  const suspectTokens = tokens.filter(
+    (token) => token.length >= 4 && (token.match(/[aeiou]/g) ?? []).length <= 1,
+  )
+  if (suspectTokens.length === tokens.length) return true
+
+  return false
+}
+
+function isClearlyNonEnglish(text: string): boolean {
+  const rankings = francAll(text, { minLength: 3 })
+  const englishScore = getLanguageScore(rankings, 'eng')
+  const [topLanguage, topScore] = rankings[0] ?? []
+
+  if (
+    countEnglishWishWords(text) === 0 &&
+    !hasWishIntent(text) &&
+    topLanguage &&
+    NON_ENGLISH_LANGUAGES.has(topLanguage) &&
+    topScore >= 0.6 &&
+    englishScore < 0.25
+  ) {
+    return true
+  }
+
+  for (const [language, score] of rankings.slice(0, 3)) {
+    if (
+      NON_ENGLISH_LANGUAGES.has(language) &&
+      score >= 0.85 &&
+      englishScore < 0.1
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function checkLanguage(text: string): CheckResult {
   const trimmed = text.trim()
 
   if (trimmed.length < 3) {
     return {
       approved: false,
-      reason: 'Please write a short wish in English.',
+      reason: 'Please write a short wish.',
     }
   }
 
-  const rankings = francAll(trimmed, { minLength: 3 })
-  const englishScore = getLanguageScore(rankings, 'eng')
-  const englishWordCount = countEnglishWishWords(trimmed)
-
-  if (isAsciiText(trimmed) && englishWordCount >= 2) {
-    return { approved: true }
-  }
-
-  for (const [language, score] of rankings.slice(0, 5)) {
-    if (
-      NON_ENGLISH_LANGUAGES.has(language) &&
-      score >= 0.7 &&
-      score > englishScore + 0.15
-    ) {
-      return {
-        approved: false,
-        reason: 'Wishes must be written in English.',
-      }
+  if (looksLikeGibberish(trimmed)) {
+    return {
+      approved: false,
+      reason: 'Please write a sincere wish.',
     }
   }
 
-  if (englishScore >= 0.55) {
-    return { approved: true }
+  // Latin-script text: accept imperfect or non-native English generously.
+  if (isLatinScriptText(trimmed)) {
+    if (hasWishIntent(trimmed) || countEnglishWishWords(trimmed) >= 1) {
+      return { approved: true }
+    }
   }
 
-  if (isAsciiText(trimmed) && englishWordCount >= 1 && englishScore >= 0.2) {
-    return { approved: true }
-  }
-
-  if (!isAsciiText(trimmed)) {
+  if (isClearlyNonEnglish(trimmed)) {
     return {
       approved: false,
       reason: 'Wishes must be written in English.',
     }
   }
 
-  return {
-    approved: false,
-    reason: 'Wishes must be written in English.',
+  if (isLatinScriptText(trimmed)) {
+    return {
+      approved: false,
+      reason: 'Wishes must be written in English.',
+    }
   }
+
+  return { approved: true }
 }

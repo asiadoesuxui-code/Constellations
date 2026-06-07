@@ -14,17 +14,18 @@ export function useSubmissionFlow(
   getExistingPositions: () => { x: number; y: number }[] = () => [],
 ) {
   const [phase, setPhase] = useState<SubmissionPhase>('idle')
+  const [name, setName] = useState('')
   const [wish, setWish] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [newConstellation, setNewConstellation] = useState<ConstellationRecord | null>(null)
   const [showPopup, setShowPopup] = useState(true)
 
   const submit = useCallback(async () => {
-    if (!wish.trim()) return
+    if (!name.trim() || !wish.trim()) return
     setPhase('submitting')
     setError(null)
 
-    const result = await submitWish(wish, getExistingPositions())
+    const result = await submitWish(wish, name, getExistingPositions())
 
     if ('error' in result) {
       setError(result.error)
@@ -35,7 +36,7 @@ export function useSubmissionFlow(
     setNewConstellation(result.constellation)
     setShowPopup(false)
     setPhase('revealing')
-  }, [wish, getExistingPositions])
+  }, [wish, name, getExistingPositions])
 
   const dismissPopup = useCallback(() => {
     setShowPopup(false)
@@ -57,6 +58,8 @@ export function useSubmissionFlow(
 
   return {
     phase,
+    name,
+    setName,
     wish,
     setWish,
     error,

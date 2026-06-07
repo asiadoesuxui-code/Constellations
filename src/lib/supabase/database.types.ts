@@ -5,6 +5,7 @@ export interface Database {
         Row: {
           id: string
           created_at: string
+          name: string
           wish: string
           seed: number
           x: number
@@ -14,6 +15,7 @@ export interface Database {
         Insert: {
           id?: string
           created_at?: string
+          name: string
           wish: string
           seed: number
           x: number
@@ -23,6 +25,7 @@ export interface Database {
         Update: {
           id?: string
           created_at?: string
+          name?: string
           wish?: string
           seed?: number
           x?: number

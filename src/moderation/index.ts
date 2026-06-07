@@ -16,7 +16,12 @@ export async function moderateSubmission(wish: string): Promise<ModerationDecisi
     return language
   }
 
-  return checkOpenAIModeration(trimmed)
+  const openai = await checkOpenAIModeration(trimmed)
+  if (!openai.approved) {
+    return { approved: true, needsReview: true }
+  }
+
+  return openai
 }
 
 export async function moderateWish(wish: string): Promise<LegacyModerationResult> {
@@ -34,12 +39,14 @@ export async function moderateWish(wish: string): Promise<LegacyModerationResult
 
   const openai = await checkOpenAIModeration(trimmed)
   if (!openai.approved) {
-    return { allowed: false, reason: openai.reason, failedCheck: 'openai' }
+    return { allowed: true, needsReview: true }
   }
 
   return { allowed: true, needsReview: openai.needsReview }
 }
 
+export { moderateName, validateFirstNameFormat } from './nameModeration'
+export { buildNameModerationPrompt } from './namePrompts'
 export { checkProfanity } from './profanityFilter'
 export { checkLanguage } from './languageDetection'
 export { checkOpenAIModeration } from './openaiModeration'

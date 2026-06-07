@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { deriveColourPalette, findEmptyPosition, hashWish } from '../_shared/hash.ts'
-import { moderateWish } from '../_shared/moderation/index.ts'
+import { moderateName, moderateWish } from '../_shared/moderation/index.ts'
 import { checkRateLimit, RateLimitError } from '../_shared/rateLimit.ts'
 
 const corsHeaders = {
@@ -22,7 +22,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { wish } = await req.json()
+    const { wish, name } = await req.json()
+
+    if (!name || typeof name !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Please enter your first name.', code: 'moderation' }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const nameModeration = await moderateName(name)
+    if (!nameModeration.allowed) {
+      return new Response(
+        JSON.stringify({ error: nameModeration.reason ?? 'This name cannot be used.', code: 'moderation' }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
     if (!wish || typeof wish !== 'string' || wish.trim().length === 0) {
       return new Response(
@@ -64,6 +79,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
     const trimmedWish = wish.trim()
+    const trimmedName = name.trim()
     const seed = hashWish(trimmedWish)
     const colour_palette = deriveColourPalette(seed)
 
@@ -81,6 +97,7 @@ Deno.serve(async (req) => {
     const { data: inserted, error: insertError } = await supabase
       .from('constellations')
       .insert({
+        name: trimmedName,
         wish: trimmedWish,
         seed,
         x: position.x,

@@ -35,6 +35,7 @@ export function generateDemoConstellations(
     records.push({
       id: `demo-${seed.toString(16)}`,
       created_at: new Date().toISOString(),
+      name: '',
       wish,
       seed,
       x: pos.x,

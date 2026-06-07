@@ -26,7 +26,12 @@ export async function moderateSubmission(wish: string): Promise<ModerationDecisi
     return { approved: false, reason: language.reason ?? 'Wishes must be written in English.' }
   }
 
-  return checkOpenAIModeration(trimmed)
+  const openai = await checkOpenAIModeration(trimmed)
+  if (!openai.approved) {
+    return { approved: true, needsReview: true }
+  }
+
+  return openai
 }
 
 export async function moderateWish(wish: string): Promise<ModerationResult> {
@@ -44,12 +49,14 @@ export async function moderateWish(wish: string): Promise<ModerationResult> {
 
   const openai = await checkOpenAIModeration(trimmed)
   if (!openai.approved) {
-    return { allowed: false, reason: openai.reason, failedCheck: 'openai' }
+    return { allowed: true, needsReview: true }
   }
 
   return { allowed: true, needsReview: openai.needsReview }
 }
 
+export { moderateName, validateFirstNameFormat } from './nameModeration.ts'
+export { buildNameModerationPrompt } from './namePrompts.ts'
 export { checkProfanity } from './profanityFilter.ts'
 export { checkLanguage } from './languageDetection.ts'
 export { checkOpenAIModeration } from './openaiModeration.ts'

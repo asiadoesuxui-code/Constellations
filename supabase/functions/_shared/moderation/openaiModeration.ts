@@ -12,7 +12,8 @@ function unavailableFallback(): { approved: boolean; needsReview?: boolean } {
 }
 
 export async function checkOpenAIModeration(
-  wish: string,
+  text: string,
+  buildPrompt: (value: string) => string = buildModerationPrompt,
 ): Promise<{ approved: boolean; reason?: string; needsReview?: boolean }> {
   const key = Deno.env.get('OPENAI_API_KEY')
 
@@ -36,7 +37,7 @@ export async function checkOpenAIModeration(
         messages: [
           {
             role: 'user',
-            content: buildModerationPrompt(wish),
+            content: buildPrompt(text),
           },
         ],
       }),

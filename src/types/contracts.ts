@@ -1,6 +1,7 @@
 export interface ConstellationRecord {
   id: string
   created_at: string
+  name: string
   wish: string
   seed: number
   x: number

@@ -21,6 +21,7 @@ export function recordFromWish(
   return {
     id: id ?? `local-${seed.toString(16)}-${Date.now()}`,
     created_at: new Date().toISOString(),
+    name: '',
     wish,
     seed,
     x,

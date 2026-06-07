@@ -4,7 +4,7 @@ import {
 } from './constellations'
 import { CONSTELLATION_MIN_DISTANCE, findEmptyPosition } from './placement'
 import { RateLimitError, rateLimiter } from './rateLimit'
-import { moderateWish } from '../moderation'
+import { moderateName, moderateWish } from '../moderation'
 import { isSupabaseConfigured } from '../lib/supabase/client'
 import { hashWish, deriveColourPalette } from '../sky/generation/hashSeed'
 import type { ConstellationRecord, SubmitWishError, SubmitWishResponse } from '../types/contracts'
@@ -14,15 +14,25 @@ const RATE_LIMIT_KEY = 'browser'
 
 export async function submitWish(
   wish: string,
+  name: string,
   existingPositions: { x: number; y: number }[] = [],
 ): Promise<SubmitWishResponse | SubmitWishError> {
-  const trimmed = wish.trim()
+  const trimmedWish = wish.trim()
+  const trimmedName = name.trim()
 
-  if (!trimmed) {
+  const nameModeration = await moderateName(trimmedName)
+  if (!nameModeration.allowed) {
+    return {
+      error: nameModeration.reason ?? 'This name cannot be used.',
+      code: 'moderation',
+    }
+  }
+
+  if (!trimmedWish) {
     return { error: 'Please enter a wish.', code: 'moderation' }
   }
 
-  if (trimmed.length > 280) {
+  if (trimmedWish.length > 280) {
     return {
       error: 'Your wish is too long. Please keep it under 280 characters.',
       code: 'moderation',
@@ -38,7 +48,7 @@ export async function submitWish(
     throw err
   }
 
-  const moderation = await moderateWish(trimmed)
+  const moderation = await moderateWish(trimmedWish)
   if (!moderation.allowed) {
     return {
       error: moderation.reason ?? 'This wish cannot be added to the sky.',
@@ -46,7 +56,7 @@ export async function submitWish(
     }
   }
 
-  const seed = hashWish(trimmed)
+  const seed = hashWish(trimmedWish)
   const colour_palette = deriveColourPalette(seed)
 
   try {
@@ -58,7 +68,8 @@ export async function submitWish(
 
     if (isSupabaseConfigured()) {
       const constellation = await insertConstellation(
-        trimmed,
+        trimmedName,
+        trimmedWish,
         seed,
         position.x,
         position.y,
@@ -70,14 +81,16 @@ export async function submitWish(
     const constellation: ConstellationRecord = {
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
-      wish: trimmed,
+      name: trimmedName,
+      wish: trimmedWish,
       seed,
       x: position.x,
       y: position.y,
       colour_palette,
     }
     return { constellation }
-  } catch {
+  } catch (err) {
+    console.error('[submitWish] placement failed:', err)
     return {
       error: isSupabaseConfigured()
         ? 'Unable to place your wish in the sky.'

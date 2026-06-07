@@ -109,6 +109,11 @@ function App() {
 
       <LandingPopup
         visible={flow.showPopup}
+        name={flow.name}
+        onNameChange={(v) => {
+          flow.setName(v)
+          if (flow.error) flow.resetError()
+        }}
         wish={flow.wish}
         onWishChange={(v) => {
           flow.setWish(v)
