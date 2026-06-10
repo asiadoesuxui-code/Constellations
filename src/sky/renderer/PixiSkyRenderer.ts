@@ -72,108 +72,180 @@ export class PixiSkyRenderer {
   private initGeneration = 0
   private canvasElement: HTMLCanvasElement | null = null
   private appInitialized = false
+  private canvasListenersAttached = false
 
   constructor(options: SkyRendererOptions = {}) {
     this.options = options
   }
 
-  async init(canvas: HTMLCanvasElement): Promise<void> {
+  async init(canvas: HTMLCanvasElement): Promise<boolean> {
     const generation = ++this.initGeneration
     this.canvasElement = canvas
-    const mobile = window.matchMedia('(max-width: 768px)').matches
-    this.app = new Application()
-    await this.app.init({
-      canvas,
-      resizeTo: window,
-      background: '#0a0a0a',
-      backgroundAlpha: 1,
-      antialias: true,
-      resolution: Math.min(window.devicePixelRatio, 2),
-      autoDensity: true,
-    })
+    this.resetSceneGraph()
 
-    if (this.destroyed || generation !== this.initGeneration) {
-      this.safeDestroyApp()
-      return
-    }
+    try {
+      const mobile = window.matchMedia('(max-width: 768px)').matches
+      this.app = new Application()
+      await this.app.init({
+        canvas,
+        resizeTo: window,
+        background: 0x0a0a0a,
+        backgroundAlpha: 1,
+        antialias: true,
+        resolution: Math.min(window.devicePixelRatio, 2),
+        autoDensity: true,
+        preferWebGLVersion: 2,
+      })
 
-    this.appInitialized = true
-    this.app.stage.addChild(this.worldLayer)
-    this.backgroundLayer = createTiledBackground(this.worldLayer)
-    this.nebulaLayer = createNebulaLayer(this.worldLayer)
-    this.ambientLayer = createAmbientStarsLayer(
-      this.worldLayer,
-      this.app.screen.width,
-      this.app.screen.height,
-      mobile,
-    )
-    this.landingLayer = await createLandingDecorations(
-      this.worldLayer,
-      this.app.screen.width,
-      this.app.screen.height,
-    )
-    this.worldLayer.addChild(this.constellationLayer)
-    this.loadSeedConstellations()
+      if (this.shouldAbortInit(generation)) return false
 
-    this.panZoom = new PanZoomHandler(canvas, this.camera, () => this.onUserInteraction())
+      if (this.app.screen.width < 1 || this.app.screen.height < 1) {
+        const width = canvas.clientWidth || window.innerWidth
+        const height = canvas.clientHeight || window.innerHeight
+        this.app.renderer.resize(Math.max(1, width), Math.max(1, height))
+      }
 
-    canvas.addEventListener('pointerdown', this.handlePointerDown)
-    canvas.addEventListener('pointerup', this.handlePointerUp)
-    canvas.addEventListener('pointermove', this.handleHover)
-    canvas.addEventListener('pointerleave', this.handlePointerLeave)
-    canvas.addEventListener('wheel', this.onUserInteraction, { passive: true })
+      // Paint the dark background immediately so the canvas never flashes white.
+      this.app.renderer.render(this.app.stage)
 
-    this.app.ticker.add((ticker) => {
-      const deltaMs = Math.min(ticker.deltaMS, 100)
-      this.camera.update()
-      this.idleDrift.update(deltaMs, this.camera)
+      this.app.stage.addChild(this.worldLayer)
+      this.backgroundLayer = createTiledBackground(this.worldLayer)
+      this.nebulaLayer = createNebulaLayer(this.worldLayer)
+      this.ambientLayer = createAmbientStarsLayer(
+        this.worldLayer,
+        this.app.screen.width,
+        this.app.screen.height,
+        mobile,
+      )
+
+      try {
+        this.landingLayer = await createLandingDecorations(
+          this.worldLayer,
+          this.app.screen.width,
+          this.app.screen.height,
+        )
+      } catch {
+        this.landingLayer = new Container()
+        this.landingLayer.visible = false
+      }
+
+      if (this.shouldAbortInit(generation)) return false
+
+      this.worldLayer.addChild(this.constellationLayer)
+      this.loadSeedConstellations()
+
+      this.panZoom = new PanZoomHandler(canvas, this.camera, () => this.onUserInteraction())
+      this.attachCanvasListeners(canvas)
+
+      this.appInitialized = true
+
+      this.app.ticker.add((ticker) => {
+        if (!this.appInitialized) return
+        const deltaMs = Math.min(ticker.deltaMS, 100)
+        this.camera.update()
+        this.idleDrift.update(deltaMs, this.camera)
+        this.camera.applyToContainer(
+          this.worldLayer,
+          this.app.screen.width,
+          this.app.screen.height,
+        )
+        this.ambientLayer?.update(deltaMs)
+        if (this.viewMode === 'landing' && this.landingLayer) {
+          updateLandingDecorations(this.landingLayer, deltaMs)
+        }
+        const nowMs = performance.now()
+        const zoom = this.camera.zoom
+        for (const visual of this.visuals.values()) {
+          updateConstellationTwinkle(visual, nowMs, deltaMs, zoom)
+          updateConstellationLineZoom(visual, zoom)
+        }
+        this.updateRevealEnvironment(nowMs)
+        const bounds = this.camera.getBounds(this.app.screen.width, this.app.screen.height)
+        this.culler.update(this.visuals, bounds, deltaMs, this.ownConstellationId)
+        this.scheduleFetch(bounds)
+      })
+
       this.camera.applyToContainer(
         this.worldLayer,
         this.app.screen.width,
         this.app.screen.height,
       )
-      this.ambientLayer?.update(deltaMs)
-      if (this.viewMode === 'landing' && this.landingLayer) {
-        updateLandingDecorations(this.landingLayer, deltaMs)
-      }
-      const nowMs = performance.now()
-      const zoom = this.camera.zoom
-      for (const visual of this.visuals.values()) {
-        updateConstellationTwinkle(visual, nowMs, deltaMs, zoom)
-        updateConstellationLineZoom(visual, zoom)
-      }
-      this.updateRevealEnvironment(nowMs)
-      const bounds = this.camera.getBounds(this.app.screen.width, this.app.screen.height)
-      this.culler.update(this.visuals, bounds, deltaMs, this.ownConstellationId)
-      this.scheduleFetch(bounds)
-    })
+      this.app.renderer.render(this.app.stage)
+      return true
+    } catch {
+      this.teardownInitAttempt()
+      return false
+    }
+  }
 
+  private resetSceneGraph(): void {
+    this.worldLayer = new Container()
+    this.constellationLayer = new Container()
+    this.visuals.clear()
+    this.backgroundLayer = undefined
+    this.nebulaLayer = undefined
+    this.landingLayer = undefined
+    this.ambientLayer = undefined
+    this.spatialGrid = new SpatialGrid()
+  }
+
+  private isInitStale(generation: number): boolean {
+    return this.destroyed || generation !== this.initGeneration
+  }
+
+  private shouldAbortInit(generation: number): boolean {
+    if (!this.isInitStale(generation)) return false
+    this.teardownInitAttempt()
+    return true
+  }
+
+  private teardownInitAttempt(): void {
+    this.detachCanvasListeners()
+    this.panZoom?.destroy()
+    this.panZoom = undefined
+    this.destroyApp()
+  }
+
+  private attachCanvasListeners(canvas: HTMLCanvasElement): void {
+    if (this.canvasListenersAttached) return
+    canvas.addEventListener('pointerdown', this.handlePointerDown)
+    canvas.addEventListener('pointerup', this.handlePointerUp)
+    canvas.addEventListener('pointermove', this.handleHover)
+    canvas.addEventListener('pointerleave', this.handlePointerLeave)
+    canvas.addEventListener('wheel', this.onUserInteraction, { passive: true })
+    this.canvasListenersAttached = true
+  }
+
+  private detachCanvasListeners(): void {
+    const canvas = this.canvasElement
+    if (!canvas || !this.canvasListenersAttached) return
+    canvas.removeEventListener('pointerdown', this.handlePointerDown)
+    canvas.removeEventListener('pointerup', this.handlePointerUp)
+    canvas.removeEventListener('pointermove', this.handleHover)
+    canvas.removeEventListener('pointerleave', this.handlePointerLeave)
+    canvas.removeEventListener('wheel', this.onUserInteraction)
+    this.canvasListenersAttached = false
   }
 
   destroy(): void {
+    if (this.destroyed) return
     this.destroyed = true
+    this.initGeneration++
     this.panZoom?.destroy()
     this.panZoom = undefined
     if (this.fetchDebounce) clearTimeout(this.fetchDebounce)
-
-    const canvas = this.canvasElement
-    if (canvas) {
-      canvas.removeEventListener('pointerdown', this.handlePointerDown)
-      canvas.removeEventListener('pointerup', this.handlePointerUp)
-      canvas.removeEventListener('pointermove', this.handleHover)
-      canvas.removeEventListener('pointerleave', this.handlePointerLeave)
-      canvas.removeEventListener('wheel', this.onUserInteraction)
-    }
+    this.detachCanvasListeners()
     this.canvasElement = null
-    this.safeDestroyApp()
+    this.destroyApp()
   }
 
-  private safeDestroyApp(): void {
-    if (!this.appInitialized || !this.app) return
+  private destroyApp(): void {
+    if (!this.app?.renderer) return
     try {
-      this.app.destroy(true)
+      // Keep the canvas element so React can re-init WebGL on the same node.
+      this.app.destroy(false, { children: true })
     } catch {
-      // App may be partially initialized during StrictMode remount.
+      // App may be partially initialized during remount.
     }
     this.appInitialized = false
   }

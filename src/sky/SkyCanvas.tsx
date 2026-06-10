@@ -2,7 +2,9 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
+  useState,
 } from 'react'
 import type {
   BoundingBox,
@@ -10,7 +12,8 @@ import type {
   SkyCanvasRef,
   SkyViewMode,
 } from '../types/contracts'
-import { PixiSkyRenderer } from './renderer/PixiSkyRenderer'
+import { PixiSkyRenderer, type SkyRendererOptions } from './renderer/PixiSkyRenderer'
+import { dismissSkyBoot } from './skyBoot'
 import type { ConstellationHoverCallback } from './skyApi'
 import { toRecordHoverHandler } from './skyApi'
 
@@ -21,6 +24,17 @@ export interface SkyCanvasProps {
   onHover?: ConstellationHoverCallback
   fetchConstellations?: (bounds: BoundingBox) => Promise<ConstellationRecord[]>
   onBoundsChange?: (bounds: BoundingBox) => void
+}
+
+const MAX_CANVAS_RETRIES = 2
+
+const CANVAS_STYLE =
+  'position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block'
+
+function createCanvas(): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.style.cssText = CANVAS_STYLE
+  return canvas
 }
 
 export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCanvas(
@@ -34,7 +48,9 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
   },
   ref,
 ) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [canvasKey, setCanvasKey] = useState(0)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const rendererRef = useRef<PixiSkyRenderer | null>(null)
   const onHoverRef = useRef(onHover)
   const fetchRef = useRef(fetchConstellations)
@@ -87,11 +103,12 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       rendererRef.current?.captureConstellationSky(constellationId, orientation) ?? null,
   }))
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+  useLayoutEffect(() => {
+    const host = hostRef.current
+    if (!host) return
 
     let cancelled = false
+    const canvas = createCanvas()
     const renderer = new PixiSkyRenderer({
       onHover: toRecordHoverHandler((wish, screenX, screenY) =>
         onHoverRef.current?.(wish, screenX, screenY),
@@ -99,27 +116,45 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       fetchConstellations: (bounds: BoundingBox) =>
         fetchRef.current?.(bounds) ?? Promise.resolve([]),
       onBoundsChange: (bounds: BoundingBox) => onBoundsRef.current?.(bounds),
-    })
-    rendererRef.current = renderer
+    } satisfies SkyRendererOptions)
 
-    void renderer.init(canvas).then(() => {
+    void renderer.init(canvas).then((ready) => {
       if (cancelled) {
         renderer.destroy()
         return
       }
+
+      if (!ready) {
+        renderer.destroy()
+        if (canvasKey < MAX_CANVAS_RETRIES) {
+          setCanvasKey((key) => key + 1)
+        } else {
+          dismissSkyBoot()
+        }
+        return
+      }
+
+      host.appendChild(canvas)
+      canvasRef.current = canvas
+      rendererRef.current = renderer
       renderer.setViewMode(viewModeRef.current)
       renderer.setFetchEnabled(fetchEnabledRef.current)
       renderer.setOwnConstellationId(ownConstellationIdRef.current)
+      requestAnimationFrame(() => {
+        if (!cancelled) dismissSkyBoot()
+      })
     })
 
     return () => {
       cancelled = true
       renderer.destroy()
+      canvas.remove()
+      canvasRef.current = null
       if (rendererRef.current === renderer) {
         rendererRef.current = null
       }
     }
-  }, [])
+  }, [canvasKey])
 
   useEffect(() => {
     rendererRef.current?.setViewMode(viewMode)
@@ -134,14 +169,12 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
   }, [ownConstellationId])
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
+      ref={hostRef}
       style={{
         position: 'absolute',
         inset: 0,
-        width: '100%',
-        height: '100%',
-        touchAction: 'none',
+        background: '#0a0a0a',
       }}
     />
   )

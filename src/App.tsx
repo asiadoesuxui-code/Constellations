@@ -89,7 +89,7 @@ function App() {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0a0a0a' }}>
       <SkyCanvas
         ref={skyRef}
         viewMode={flow.showPopup ? 'landing' : 'exploring'}
