@@ -1,6 +1,6 @@
 import { Application, Container } from 'pixi.js'
 import { CONSTELLATION_MIN_DISTANCE } from '../../api/placement'
-import { getSeedConstellations, isSeedConstellationId } from '../../api/seedConstellations'
+import { getSeedConstellations, isSeedConstellationId, AMBIENT_SEED_COUNT } from '../../api/seedConstellations'
 import { isSupabaseConfigured } from '../../lib/supabase/client'
 import type { BoundingBox, ConstellationLabelTarget, ConstellationRecord, SkyCaptureResult } from '../../types/contracts'
 import { recordFromWish } from '../skyApi'
@@ -268,9 +268,8 @@ export class PixiSkyRenderer {
   }
 
   private loadSeedConstellations(): void {
-    if (isSupabaseConfigured()) return
-
-    for (const record of getSeedConstellations()) {
+    const limit = isSupabaseConfigured() ? AMBIENT_SEED_COUNT : undefined
+    for (const record of getSeedConstellations(limit)) {
       void this.addConstellation(record)
     }
   }

@@ -3,7 +3,7 @@ import {
   insertConstellation,
 } from './constellations'
 import { CONSTELLATION_MIN_DISTANCE, findEmptyPosition } from './placement'
-import { getSeedConstellationPositions } from './seedConstellations'
+import { getSeedConstellationPositions, AMBIENT_SEED_COUNT } from './seedConstellations'
 import { RateLimitError, rateLimiter } from './rateLimit'
 import {
   checkProfanity,
@@ -90,7 +90,7 @@ export async function submitWish(
     }
 
     const occupied = isSupabaseConfigured()
-      ? nearbyPositions
+      ? [...nearbyPositions, ...getSeedConstellationPositions(AMBIENT_SEED_COUNT)]
       : [...nearbyPositions, ...getSeedConstellationPositions()]
 
     const position = findEmptyPosition(occupied, CONSTELLATION_MIN_DISTANCE, seed)

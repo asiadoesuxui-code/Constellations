@@ -69,4 +69,10 @@ describe('seedConstellations', () => {
     expect(up).toBeGreaterThanOrEqual(10)
     expect(down).toBeGreaterThanOrEqual(10)
   })
+
+  it('returns a smaller evenly sampled subset when limited', () => {
+    const subset = getSeedConstellations(10)
+    expect(subset).toHaveLength(10)
+    expect(subset.every((record) => record.id.startsWith('seed-'))).toBe(true)
+  })
 })

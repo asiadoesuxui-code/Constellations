@@ -150,12 +150,26 @@ function buildSeedConstellations(): ConstellationRecord[] {
 
 const SEED_CONSTELLATIONS = buildSeedConstellations()
 
-export function getSeedConstellations(): ConstellationRecord[] {
-  return SEED_CONSTELLATIONS
+/** Ambient demo constellations shown alongside persisted wishes when Supabase is configured. */
+export const AMBIENT_SEED_COUNT = 10
+
+function pickSeedSubset(records: ConstellationRecord[], limit: number): ConstellationRecord[] {
+  if (limit >= records.length) return records
+  const step = records.length / limit
+  const picked: ConstellationRecord[] = []
+  for (let i = 0; i < limit; i++) {
+    picked.push(records[Math.floor(i * step)])
+  }
+  return picked
 }
 
-export function getSeedConstellationPositions(): Position[] {
-  return SEED_CONSTELLATIONS.map(({ x, y }) => ({ x, y }))
+export function getSeedConstellations(limit?: number): ConstellationRecord[] {
+  if (limit === undefined) return SEED_CONSTELLATIONS
+  return pickSeedSubset(SEED_CONSTELLATIONS, limit)
+}
+
+export function getSeedConstellationPositions(limit?: number): Position[] {
+  return getSeedConstellations(limit).map(({ x, y }) => ({ x, y }))
 }
 
 export function isSeedConstellationId(id: string): boolean {
