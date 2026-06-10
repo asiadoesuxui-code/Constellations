@@ -46,29 +46,6 @@ type OrganicStyle =
 
 type ShapeStyle = Archetype | OrganicStyle
 
-/** Interleave archetypes and organics so picks alternate families. */
-const ALL_STYLES: ShapeStyle[] = [
-  'zigzag',
-  'dipper',
-  'meander',
-  'cassiopeia',
-  'organic_arc',
-  'wide_s',
-  'compact',
-  'cross',
-  'short_fork',
-  'orion',
-  'asymmetric_cluster',
-  'sickle',
-  'kite',
-  'crown',
-  'triangle',
-  'twins',
-  'diamond',
-  'serpent',
-  'arrow',
-]
-
 const ORGANIC_STYLES: OrganicStyle[] = [
   'zigzag',
   'meander',
