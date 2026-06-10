@@ -115,6 +115,19 @@ export async function fetchNearbyPositions(
   centerY: number,
   radius: number,
 ): Promise<{ x: number; y: number }[]> {
-  const records = await getConstellations(centerX, centerY, radius)
-  return records.map(({ x, y }) => ({ x, y }))
+  if (!isSupabaseConfigured()) return []
+
+  const { data, error } = await getSupabaseClient()
+    .from('constellations')
+    .select('x, y')
+    .gte('x', centerX - radius)
+    .lte('x', centerX + radius)
+    .gte('y', centerY - radius)
+    .lte('y', centerY + radius)
+
+  if (error) throw error
+
+  return (data ?? [])
+    .filter((row) => distanceFrom(centerX, centerY, row.x, row.y) <= radius)
+    .map(({ x, y }) => ({ x, y }))
 }

@@ -1,7 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { deriveColourPalette, findEmptyPosition, hashWish } from '../_shared/hash.ts'
 import { getSeedConstellationPositions } from '../_shared/seedConstellations.ts'
-import { moderateName, moderateWish } from '../_shared/moderation/index.ts'
+import {
+  checkProfanity,
+  checkLanguage,
+  checkSubmissionOpenAIModeration,
+  validateFirstNameFormat,
+} from '../_shared/moderation/index.ts'
 import { checkRateLimit, RateLimitError } from '../_shared/rateLimit.ts'
 
 const corsHeaders = {
@@ -32,10 +37,19 @@ Deno.serve(async (req) => {
       )
     }
 
-    const nameModeration = await moderateName(name)
-    if (!nameModeration.allowed) {
+    const trimmedName = name.trim()
+    const nameFormat = validateFirstNameFormat(trimmedName)
+    if (!nameFormat.approved) {
       return new Response(
-        JSON.stringify({ error: nameModeration.reason ?? 'This name cannot be used.', code: 'moderation' }),
+        JSON.stringify({ error: nameFormat.reason ?? 'This name cannot be used.', code: 'moderation' }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const nameProfanity = checkProfanity(trimmedName)
+    if (!nameProfanity.approved) {
+      return new Response(
+        JSON.stringify({ error: 'This name contains language that cannot be used.', code: 'moderation' }),
         { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
@@ -47,9 +61,33 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (wish.trim().length > 280) {
+    const trimmedWish = wish.trim()
+
+    if (trimmedWish.length > 280) {
       return new Response(
         JSON.stringify({ error: 'Your wish is too long. Please keep it under 280 characters.', code: 'moderation' }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const wishProfanity = checkProfanity(trimmedWish)
+    if (!wishProfanity.approved) {
+      return new Response(
+        JSON.stringify({
+          error: wishProfanity.reason ?? 'This wish cannot be added to the sky.',
+          code: 'moderation',
+        }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const language = checkLanguage(trimmedWish)
+    if (!language.approved) {
+      return new Response(
+        JSON.stringify({
+          error: language.reason ?? 'This wish cannot be added to the sky.',
+          code: 'moderation',
+        }),
         { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
@@ -67,34 +105,37 @@ Deno.serve(async (req) => {
       throw err
     }
 
-    const moderation = await moderateWish(wish.trim())
-    if (!moderation.allowed) {
-      return new Response(
-        JSON.stringify({ error: moderation.reason ?? 'This wish cannot be added to the sky.', code: 'moderation' }),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    const trimmedWish = wish.trim()
-    const trimmedName = name.trim()
+    const searchRadius = 2000
     const seed = hashWish(trimmedWish)
     const colour_palette = deriveColourPalette(seed)
 
-    const searchRadius = 2000
-    const { data: nearby } = await supabase
-      .from('constellations')
-      .select('x, y')
-      .gte('x', -searchRadius)
-      .lte('x', searchRadius)
-      .gte('y', -searchRadius)
-      .lte('y', searchRadius)
+    const [moderation, nearbyResult] = await Promise.all([
+      checkSubmissionOpenAIModeration(trimmedName, trimmedWish),
+      supabase
+        .from('constellations')
+        .select('x, y')
+        .gte('x', -searchRadius)
+        .lte('x', searchRadius)
+        .gte('y', -searchRadius)
+        .lte('y', searchRadius),
+    ])
+
+    if (!moderation.name.approved) {
+      return new Response(
+        JSON.stringify({
+          error: moderation.name.reason ?? 'This name cannot be used.',
+          code: 'moderation',
+        }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
     const position = findEmptyPosition(
-      [...(nearby ?? []), ...getSeedConstellationPositions()],
+      [...(nearbyResult.data ?? []), ...getSeedConstellationPositions()],
       360,
       seed,
     )

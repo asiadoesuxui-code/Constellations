@@ -1,5 +1,7 @@
 import { buildModerationPrompt } from './prompts.ts'
 import { parseModerationResponse } from './parseModerationResponse.ts'
+import { parseSubmissionModerationResponse } from './parseSubmissionModerationResponse.ts'
+import { buildSubmissionModerationPrompt } from './submissionPrompts.ts'
 
 const TIMEOUT_MS = 2500
 const MODEL = 'gpt-4o-mini'
@@ -59,6 +61,72 @@ export async function checkOpenAIModeration(
     return { approved: true }
   } catch {
     return unavailableFallback()
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+export async function checkSubmissionOpenAIModeration(
+  name: string,
+  wish: string,
+): Promise<{
+  name: { approved: boolean; reason?: string; needsReview?: boolean }
+  wish: { approved: boolean; reason?: string; needsReview?: boolean }
+  unavailable?: boolean
+}> {
+  const key = Deno.env.get('OPENAI_API_KEY')
+
+  if (!key) {
+    const fallback = unavailableFallback()
+    return {
+      name: fallback,
+      wish: fallback,
+      unavailable: true,
+    }
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 150,
+        messages: [
+          {
+            role: 'user',
+            content: buildSubmissionModerationPrompt(name, wish),
+          },
+        ],
+      }),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      const fallback = unavailableFallback()
+      return {
+        name: fallback,
+        wish: fallback,
+        unavailable: true,
+      }
+    }
+
+    const data = await response.json()
+    const text = data.choices?.[0]?.message?.content ?? ''
+    return parseSubmissionModerationResponse(text)
+  } catch {
+    const fallback = unavailableFallback()
+    return {
+      name: fallback,
+      wish: fallback,
+      unavailable: true,
+    }
   } finally {
     clearTimeout(timeout)
   }

@@ -1,7 +1,10 @@
 import OpenAI from 'openai'
 import { buildModerationPrompt } from './prompts'
 import { parseModerationResponse } from './parseModerationResponse'
+import { parseSubmissionModerationResponse } from './parseSubmissionModerationResponse'
+import { buildSubmissionModerationPrompt } from './submissionPrompts'
 import type { ModerationDecision } from './types'
+import type { SubmissionModerationResult } from './parseSubmissionModerationResponse'
 
 const TIMEOUT_MS = 2500
 const MODEL = 'gpt-4o-mini'
@@ -61,5 +64,55 @@ export async function checkOpenAIModeration(
     return { approved: true }
   } catch {
     return unavailableFallback()
+  }
+}
+
+export type SubmissionOpenAIModerationResult = SubmissionModerationResult & {
+  unavailable?: boolean
+}
+
+export async function checkSubmissionOpenAIModeration(
+  name: string,
+  wish: string,
+  options?: { apiKey?: string },
+): Promise<SubmissionOpenAIModerationResult> {
+  const key = options?.apiKey ?? getOpenAIApiKey()
+
+  if (!key) {
+    const fallback = unavailableFallback()
+    return {
+      name: fallback,
+      wish: fallback,
+      unavailable: true,
+    }
+  }
+
+  const client = new OpenAI({
+    apiKey: key,
+    dangerouslyAllowBrowser: true,
+    timeout: TIMEOUT_MS,
+  })
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      max_tokens: 150,
+      messages: [
+        {
+          role: 'user',
+          content: buildSubmissionModerationPrompt(name, wish),
+        },
+      ],
+    })
+
+    const responseText = completion.choices[0]?.message?.content ?? ''
+    return parseSubmissionModerationResponse(responseText)
+  } catch {
+    const fallback = unavailableFallback()
+    return {
+      name: fallback,
+      wish: fallback,
+      unavailable: true,
+    }
   }
 }

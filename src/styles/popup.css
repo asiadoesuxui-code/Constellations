@@ -407,13 +407,13 @@
 
 @media (max-width: 768px) {
   .popup-overlay {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    padding: 1.5rem 20px;
   }
 
   .popup-card {
     max-width: 100%;
-    border-radius: 32px 32px 0 0;
+    border-radius: 32px;
     padding: 3.25rem 1.75rem 2.75rem;
   }
 

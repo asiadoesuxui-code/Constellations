@@ -13,17 +13,17 @@
 .share-card-capture.popup-card {
   max-width: none;
   margin: 0;
-  padding: 2.75rem 3rem 2.5rem;
+  padding: 20px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  gap: 20px;
 }
 
 .share-card-sky {
   position: relative;
-  width: fit-content;
-  max-width: 100%;
+  width: 100%;
   overflow: hidden;
   border-radius: 20px;
   background: #0a0a0a;
@@ -36,10 +36,8 @@
 
 .share-card-sky img {
   display: block;
-  width: auto;
+  width: 100%;
   height: auto;
-  max-width: 100%;
-  max-height: min(60vh, calc(92vw - 6rem));
 }
 
 .share-card-footer {
@@ -47,8 +45,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  margin-top: 1.75rem;
-  padding-top: 0;
   width: 100%;
 }
 
@@ -70,32 +66,22 @@
 
 @media (max-width: 768px) {
   .share-card-capture.popup-card {
-    padding: 2.5rem 1.75rem 2rem;
+    border-radius: 32px;
   }
 
   .save-popup-overlay {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    padding: 1.5rem 20px;
   }
 
   .share-popup-panel {
     width: 100%;
     max-width: 100%;
-    max-height: none;
-  }
-
-  .share-card-capture.popup-card {
-    border-radius: 32px 32px 0 0;
-  }
-
-  .share-card-sky img {
-    max-width: 100%;
-    max-height: min(55vh, calc(100vw - 3.5rem));
+    max-height: 92vh;
   }
 
   .share-card-footer {
     gap: 1rem;
-    margin-top: 1.5rem;
   }
 
   .share-card-tagline {

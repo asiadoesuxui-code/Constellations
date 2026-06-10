@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { checkProfanity } from '../profanityFilter'
 import { checkLanguage } from '../languageDetection'
 import { parseModerationResponse } from '../parseModerationResponse'
+import { parseSubmissionModerationResponse } from '../parseSubmissionModerationResponse'
+import { buildSubmissionModerationPrompt } from '../submissionPrompts'
 import { buildModerationPrompt } from '../prompts'
 import { moderateSubmission } from '../index'
 import { validateFirstNameFormat, moderateName } from '../nameModeration'
@@ -55,6 +57,45 @@ describe('languageDetection', () => {
   it('rejects gibberish', () => {
     expect(checkLanguage('asdfgh jklqwer').approved).toBe(false)
     expect(checkLanguage('zzzzzzzzzzzzz').approved).toBe(false)
+  })
+})
+
+describe('parseSubmissionModerationResponse', () => {
+  it('parses combined ACCEPT', () => {
+    const result = parseSubmissionModerationResponse('NAME: ACCEPT\nWISH: ACCEPT')
+    expect(result.name.approved).toBe(true)
+    expect(result.wish.approved).toBe(true)
+  })
+
+  it('parses NAME REJECT with reason', () => {
+    const result = parseSubmissionModerationResponse(
+      'NAME: REJECT\nNot a real name\nWISH: ACCEPT',
+    )
+    expect(result.name.approved).toBe(false)
+    if (!result.name.approved) {
+      expect(result.name.reason).toBe('Not a real name')
+    }
+    expect(result.wish.approved).toBe(true)
+  })
+
+  it('parses WISH REJECT with reason', () => {
+    const result = parseSubmissionModerationResponse(
+      'NAME: ACCEPT\nWISH: REJECT\nThis appears to be spam.',
+    )
+    expect(result.name.approved).toBe(true)
+    expect(result.wish.approved).toBe(false)
+    if (!result.wish.approved) {
+      expect(result.wish.reason).toBe('This appears to be spam.')
+    }
+  })
+})
+
+describe('buildSubmissionModerationPrompt', () => {
+  it('includes both name and wish', () => {
+    const prompt = buildSubmissionModerationPrompt('Sofia', 'I wish for peace')
+    expect(prompt).toContain("FIRST NAME: 'Sofia'")
+    expect(prompt).toContain("WISH: 'I wish for peace'")
+    expect(prompt).toContain('NAME: ACCEPT or NAME: REJECT')
   })
 })
 

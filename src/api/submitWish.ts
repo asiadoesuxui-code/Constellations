@@ -5,7 +5,12 @@ import {
 import { CONSTELLATION_MIN_DISTANCE, findEmptyPosition } from './placement'
 import { getSeedConstellationPositions } from './seedConstellations'
 import { RateLimitError, rateLimiter } from './rateLimit'
-import { moderateName, moderateWish } from '../moderation'
+import {
+  checkProfanity,
+  checkLanguage,
+  checkSubmissionOpenAIModeration,
+  validateFirstNameFormat,
+} from '../moderation'
 import { isSupabaseConfigured } from '../lib/supabase/client'
 import { hashWish, deriveColourPalette } from '../sky/generation/hashSeed'
 import type { ConstellationRecord, SubmitWishError, SubmitWishResponse } from '../types/contracts'
@@ -21,10 +26,18 @@ export async function submitWish(
   const trimmedWish = wish.trim()
   const trimmedName = name.trim()
 
-  const nameModeration = await moderateName(trimmedName)
-  if (!nameModeration.allowed) {
+  const nameFormat = validateFirstNameFormat(trimmedName)
+  if (!nameFormat.approved) {
     return {
-      error: nameModeration.reason ?? 'This name cannot be used.',
+      error: nameFormat.reason ?? 'This name cannot be used.',
+      code: 'moderation',
+    }
+  }
+
+  const nameProfanity = checkProfanity(trimmedName)
+  if (!nameProfanity.approved) {
+    return {
+      error: 'This name contains language that cannot be used.',
       code: 'moderation',
     }
   }
@@ -40,10 +53,18 @@ export async function submitWish(
     }
   }
 
-  const moderation = await moderateWish(trimmedWish)
-  if (!moderation.allowed) {
+  const wishProfanity = checkProfanity(trimmedWish)
+  if (!wishProfanity.approved) {
     return {
-      error: moderation.reason ?? 'This wish cannot be added to the sky.',
+      error: wishProfanity.reason ?? 'This wish cannot be added to the sky.',
+      code: 'moderation',
+    }
+  }
+
+  const language = checkLanguage(trimmedWish)
+  if (!language.approved) {
+    return {
+      error: language.reason ?? 'This wish cannot be added to the sky.',
       code: 'moderation',
     }
   }
@@ -51,11 +72,25 @@ export async function submitWish(
   const seed = hashWish(trimmedWish)
   const colour_palette = deriveColourPalette(seed)
 
+  const positionsPromise = isSupabaseConfigured()
+    ? fetchNearbyPositions(0, 0, SEARCH_RADIUS)
+    : Promise.resolve(existingPositions)
+
   try {
+    const [moderation, nearbyPositions] = await Promise.all([
+      checkSubmissionOpenAIModeration(trimmedName, trimmedWish),
+      positionsPromise,
+    ])
+
+    if (!moderation.name.approved) {
+      return {
+        error: moderation.name.reason ?? 'This name cannot be used.',
+        code: 'moderation',
+      }
+    }
+
     const occupied = [
-      ...(isSupabaseConfigured()
-        ? await fetchNearbyPositions(0, 0, SEARCH_RADIUS)
-        : existingPositions),
+      ...nearbyPositions,
       ...getSeedConstellationPositions(),
     ]
 
