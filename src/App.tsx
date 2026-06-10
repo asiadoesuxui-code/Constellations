@@ -93,7 +93,7 @@ function App() {
       <SkyCanvas
         ref={skyRef}
         viewMode={flow.showPopup ? 'landing' : 'exploring'}
-        fetchEnabled={flow.phase === 'exploring'}
+        fetchEnabled={isSupabaseConfigured()}
         ownConstellationId={flow.newConstellation?.id ?? null}
         fetchConstellations={fetchConstellations}
       />

@@ -1,6 +1,7 @@
 import { Application, Container } from 'pixi.js'
 import { CONSTELLATION_MIN_DISTANCE } from '../../api/placement'
-import { getSeedConstellations } from '../../api/seedConstellations'
+import { getSeedConstellations, isSeedConstellationId } from '../../api/seedConstellations'
+import { isSupabaseConfigured } from '../../lib/supabase/client'
 import type { BoundingBox, ConstellationLabelTarget, ConstellationRecord, SkyCaptureResult } from '../../types/contracts'
 import { recordFromWish } from '../skyApi'
 import { cameraPanDurationMs, CameraController } from '../camera/CameraController'
@@ -34,6 +35,8 @@ import { createNebulaLayer } from '../renderer/NebulaLayer'
 import { createTiledBackground } from '../renderer/SkyBackground'
 import { drawCaptureLabels } from './drawCaptureLabels'
 
+const INITIAL_LOAD_RADIUS = 2800
+
 export interface SkyRendererOptions {
   onBoundsChange?: (bounds: BoundingBox) => void
   onHover?: (record: ConstellationRecord | null, screenX: number, screenY: number) => void
@@ -63,6 +66,7 @@ export class PixiSkyRenderer {
   private fetchDebounce: ReturnType<typeof setTimeout> | null = null
   private addingIds = new Set<string>()
   private fetchEnabled = false
+  private initialFetchDone = false
   private pendingUserFetch = false
   private ownConstellationId: string | null = null
   private hoveredId: string | null = null
@@ -171,6 +175,9 @@ export class PixiSkyRenderer {
         this.app.screen.height,
       )
       this.app.renderer.render(this.app.stage)
+      if (this.fetchEnabled) {
+        void this.performInitialFetch()
+      }
       return true
     } catch {
       this.teardownInitAttempt()
@@ -261,6 +268,8 @@ export class PixiSkyRenderer {
   }
 
   private loadSeedConstellations(): void {
+    if (isSupabaseConfigured()) return
+
     for (const record of getSeedConstellations()) {
       void this.addConstellation(record)
     }
@@ -297,10 +306,14 @@ export class PixiSkyRenderer {
     this.fetchEnabled = enabled
     if (!enabled) {
       this.pendingUserFetch = false
+      this.initialFetchDone = false
       if (this.fetchDebounce) clearTimeout(this.fetchDebounce)
       return
     }
     this.lastFetchBounds = null
+    if (this.appInitialized && !this.initialFetchDone) {
+      void this.performInitialFetch()
+    }
   }
 
   setOwnConstellationId(id: string | null): void {
@@ -339,8 +352,9 @@ export class PixiSkyRenderer {
     } = {},
   ): Promise<void> {
     if (this.spatialGrid.has(record.id) || this.addingIds.has(record.id)) return
-    if (record.id !== this.ownConstellationId) {
+    if (record.id !== this.ownConstellationId && !isSeedConstellationId(record.id)) {
       for (const existing of this.spatialGrid.getAll()) {
+        if (isSeedConstellationId(existing.id)) continue
         if (existing.seed === record.seed) return
       }
     }
@@ -727,7 +741,7 @@ export class PixiSkyRenderer {
   }
 
   private scheduleFetch(bounds: BoundingBox) {
-    if (!this.fetchEnabled || this.viewMode === 'landing' || !this.pendingUserFetch) return
+    if (!this.fetchEnabled || !this.pendingUserFetch) return
 
     const key = `${Math.floor(bounds.minX / 500)},${Math.floor(bounds.maxX / 500)},${Math.floor(bounds.minY / 500)},${Math.floor(bounds.maxY / 500)}`
     if (key === this.lastFetchBounds) return
@@ -747,9 +761,38 @@ export class PixiSkyRenderer {
     }, 300)
   }
 
-  private async loadBounds(bounds: BoundingBox, boundsKey: string, viewportBounds: BoundingBox) {
-    if (!this.options.fetchConstellations) return
-    if (this.viewMode === 'landing') return
+  private async performInitialFetch(): Promise<void> {
+    if (this.initialFetchDone || !this.fetchEnabled || !this.options.fetchConstellations) return
+    if (!this.appInitialized) return
+
+    const width = this.app.screen.width
+    const height = this.app.screen.height
+    if (width < 1 || height < 1) {
+      requestAnimationFrame(() => void this.performInitialFetch())
+      return
+    }
+
+    const cx = this.camera.x
+    const cy = this.camera.y
+    const loaded = await this.loadBounds(
+      {
+        minX: cx - INITIAL_LOAD_RADIUS,
+        maxX: cx + INITIAL_LOAD_RADIUS,
+        minY: cy - INITIAL_LOAD_RADIUS,
+        maxY: cy + INITIAL_LOAD_RADIUS,
+      },
+      'initial',
+      this.camera.getBounds(width, height),
+    )
+    if (loaded) this.initialFetchDone = true
+  }
+
+  private async loadBounds(
+    bounds: BoundingBox,
+    boundsKey: string,
+    viewportBounds: BoundingBox,
+  ): Promise<boolean> {
+    if (!this.options.fetchConstellations) return false
     try {
       const records = await this.options.fetchConstellations(bounds)
       for (const record of records) {
@@ -759,8 +802,10 @@ export class PixiSkyRenderer {
       this.lastFetchBounds = boundsKey
       this.pendingUserFetch = false
       this.options.onBoundsChange?.(viewportBounds)
-    } catch {
-      // fetch failures are non-fatal during exploration
+      return true
+    } catch (err) {
+      console.error('[PixiSkyRenderer] failed to load constellations:', err)
+      return false
     }
   }
 }

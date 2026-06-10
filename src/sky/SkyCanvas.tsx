@@ -138,10 +138,11 @@ export const SkyCanvas = forwardRef<SkyCanvasRef, SkyCanvasProps>(function SkyCa
       canvasRef.current = canvas
       rendererRef.current = renderer
       renderer.setViewMode(viewModeRef.current)
-      renderer.setFetchEnabled(fetchEnabledRef.current)
       renderer.setOwnConstellationId(ownConstellationIdRef.current)
       requestAnimationFrame(() => {
-        if (!cancelled) dismissSkyBoot()
+        if (cancelled) return
+        renderer.setFetchEnabled(fetchEnabledRef.current)
+        dismissSkyBoot()
       })
     })
 

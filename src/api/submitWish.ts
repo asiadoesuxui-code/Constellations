@@ -89,10 +89,9 @@ export async function submitWish(
       }
     }
 
-    const occupied = [
-      ...nearbyPositions,
-      ...getSeedConstellationPositions(),
-    ]
+    const occupied = isSupabaseConfigured()
+      ? nearbyPositions
+      : [...nearbyPositions, ...getSeedConstellationPositions()]
 
     const position = findEmptyPosition(occupied, CONSTELLATION_MIN_DISTANCE, seed)
 
