@@ -42,24 +42,22 @@
 
 .share-card-footer {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
+  justify-content: center;
+  gap: 1.25rem;
   width: 100%;
 }
 
 .share-card-tagline {
   margin: 0;
   font-size: clamp(1.75rem, 4vw, 2.5rem);
-  text-align: left;
-  flex: 1;
-  min-width: 0;
+  text-align: center;
 }
 
 .share-card-footer .submit-btn {
   margin: 0;
-  flex-shrink: 0;
-  min-width: 0;
+  min-width: 240px;
   padding-left: 1.75rem;
   padding-right: 1.75rem;
 }
@@ -80,15 +78,12 @@
     max-height: 92vh;
   }
 
-  .share-card-footer {
-    gap: 1rem;
-  }
-
   .share-card-tagline {
     font-size: 1.625rem;
   }
 
   .share-card-footer .submit-btn {
+    min-width: 0;
     padding-left: 1.25rem;
     padding-right: 1.25rem;
     font-size: 1rem;

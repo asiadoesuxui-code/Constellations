@@ -424,4 +424,12 @@
   .submit-btn {
     margin-top: 2.25rem;
   }
+
+  .save-card-btn {
+    white-space: nowrap;
+    font-size: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: calc(100vw - 40px);
+  }
 }
