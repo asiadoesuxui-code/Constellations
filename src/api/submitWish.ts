@@ -40,15 +40,6 @@ export async function submitWish(
     }
   }
 
-  try {
-    rateLimiter.enforce(RATE_LIMIT_KEY)
-  } catch (err) {
-    if (err instanceof RateLimitError) {
-      return { error: err.message, code: 'rate_limit' }
-    }
-    throw err
-  }
-
   const moderation = await moderateWish(trimmedWish)
   if (!moderation.allowed) {
     return {
@@ -70,6 +61,15 @@ export async function submitWish(
 
     const position = findEmptyPosition(occupied, CONSTELLATION_MIN_DISTANCE, seed)
 
+    try {
+      rateLimiter.check(RATE_LIMIT_KEY)
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        return { error: err.message, code: 'rate_limit' }
+      }
+      throw err
+    }
+
     if (isSupabaseConfigured()) {
       const constellation = await insertConstellation(
         trimmedName,
@@ -79,6 +79,7 @@ export async function submitWish(
         position.y,
         colour_palette,
       )
+      rateLimiter.record(RATE_LIMIT_KEY)
       return { constellation }
     }
 
@@ -92,6 +93,7 @@ export async function submitWish(
       y: position.y,
       colour_palette,
     }
+    rateLimiter.record(RATE_LIMIT_KEY)
     return { constellation }
   } catch (err) {
     console.error('[submitWish] placement failed:', err)

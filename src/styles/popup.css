@@ -90,6 +90,10 @@
   filter: drop-shadow(0 1px 8px rgba(212, 175, 120, 0.25));
 }
 
+.popup-form {
+  display: contents;
+}
+
 .name-field {
   text-align: left;
   padding: 0 0.25rem;

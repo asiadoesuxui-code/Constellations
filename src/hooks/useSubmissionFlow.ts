@@ -43,6 +43,11 @@ export function useSubmissionFlow(
     setPhase('exploring')
   }, [])
 
+  const openPopup = useCallback(() => {
+    setShowPopup(true)
+    setPhase('idle')
+  }, [])
+
   const onRevealComplete = useCallback(() => {
     setPhase('card')
   }, [])
@@ -67,10 +72,12 @@ export function useSubmissionFlow(
     newConstellation,
     submit,
     dismissPopup,
+    openPopup,
     onRevealComplete,
     dismissCard,
     resetError,
     isSubmitting: phase === 'submitting',
     showSaveCard: phase === 'card',
+    showMakeWishButton: phase === 'exploring' && !newConstellation && !showPopup,
   }
 }

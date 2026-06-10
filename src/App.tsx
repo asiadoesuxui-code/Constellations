@@ -121,6 +121,12 @@ function App() {
         visible={!flow.showPopup && !sharePreview}
       />
 
+      {flow.showMakeWishButton && (
+        <button type="button" className="save-card-btn" onClick={flow.openPopup}>
+          Make a wish
+        </button>
+      )}
+
       {flow.showSaveCard && !sharePreview && (
         <button type="button" className="save-card-btn" onClick={handleSaveCard}>
           Save your constellation

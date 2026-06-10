@@ -61,6 +61,20 @@ export function LandingPopup({
   isSubmitting,
   error,
 }: LandingPopupProps) {
+  const canSubmit = !isSubmitting && Boolean(name.trim()) && Boolean(wish.trim())
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (canSubmit) onSubmit()
+  }
+
+  const handleWishKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (canSubmit) onSubmit()
+    }
+  }
+
   return (
     <AnimatePresence>
       {visible && (
@@ -80,6 +94,7 @@ export function LandingPopup({
           >
             <PopupStar />
             <h1 className="popup-prompt">wish upon a star</h1>
+            <form className="popup-form" onSubmit={handleSubmit}>
             <div className="name-field">
               <div className="name-line">
                 <span className="name-prefix">name:</span>
@@ -102,6 +117,7 @@ export function LandingPopup({
                   className="wish-input"
                   value={wish}
                   onChange={(e) => onWishChange(e.target.value)}
+                  onKeyDown={handleWishKeyDown}
                   placeholder=""
                   maxLength={280}
                   rows={3}
@@ -113,10 +129,9 @@ export function LandingPopup({
               </div>
             </div>
             <button
-              type="button"
+              type="submit"
               className="submit-btn"
-              onClick={onSubmit}
-              disabled={isSubmitting || !name.trim() || !wish.trim()}
+              disabled={!canSubmit}
             >
               {isSubmitting ? 'Sending...' : 'Send your wish'}
             </button>
@@ -131,6 +146,7 @@ export function LandingPopup({
                 </motion.div>
               )}
             </AnimatePresence>
+            </form>
             <button type="button" className="dismiss-link" onClick={onDismiss}>
               just look around
             </button>
